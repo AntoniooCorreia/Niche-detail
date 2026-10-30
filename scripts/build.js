@@ -6,7 +6,11 @@
      SUPABASE_URL              ex.: https://xxxx.supabase.co
      SUPABASE_PUBLISHABLE_KEY  ex.: sb_publishable_...
    Também aceita os nomes NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY e *_ANON_KEY,
-   que a integração Supabase do Vercel cria sozinha. */
+   que a integração Supabase do Vercel cria sozinha.
+     SITE_URL                  opcional, ex.: https://www.nichedetail.pt (sem isto usa o endereço do Vercel)
+
+   O conteúdo vem das tabelas do Supabase (função get_site). O public/data/site.json é o conteúdo inicial:
+   só se usa sem Supabase ou enquanto a base de dados estiver vazia. */
 const fs = require('fs');
 const path = require('path');
 
@@ -27,25 +31,29 @@ const env = (...names) => names.map(n => (process.env[n] || '').trim()).find(Boo
 const url = env('SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL').replace(/\/$/, '');
 const key = env('SUPABASE_PUBLISHABLE_KEY', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY');
 
+// Endereço público do site, para as partilhas no WhatsApp/Facebook levarem imagem.
+// No Vercel vem sozinho (VERCEL_PROJECT_PRODUCTION_URL); com domínio próprio podes pôr SITE_URL=https://www.exemplo.pt
+const siteUrl = (env('SITE_URL') || (env('VERCEL_PROJECT_PRODUCTION_URL') ? 'https://' + env('VERCEL_PROJECT_PRODUCTION_URL') : '')).replace(/\/+$/, '');
+
 const N = require(path.join(pub, 'assets', 'app.js'));
 
 async function main() {
   let data = JSON.parse(fs.readFileSync(path.join(pub, 'data', 'site.json'), 'utf8'));
   let source = 'public/data/site.json';
 
-  // Com o Supabase ligado, o HTML sai já com o conteúdo publicado no painel (bom para o Google).
+  // Com o Supabase ligado, o HTML sai já com o conteúdo das tabelas (bom para o Google e para as partilhas).
+  // public/data/site.json só se usa sem Supabase ou se a base de dados ainda estiver vazia.
   if (url && key) {
     try {
-      const r = await fetch(`${url}/rest/v1/site_content?id=eq.main&select=data`, { headers: { apikey: key, Accept: 'application/json' } });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const rows = await r.json();
-      if (rows[0] && rows[0].data) { data = rows[0].data; source = 'Supabase'; }
+      const fresh = await N.fetchSite(fetch, url, key);
+      if (fresh) { data = fresh; source = 'Supabase'; }
+      else console.warn('Aviso: o Supabase ainda não tem conteúdo. Corre o supabase/setup.sql no SQL Editor. Por agora uso o public/data/site.json.');
     } catch (e) {
       console.warn(`Aviso: não consegui ler o conteúdo do Supabase (${e.message}). Uso o public/data/site.json.`);
     }
   }
 
-  fs.writeFileSync(path.join(pub, 'index.html'), N.buildDocument(data, 'production'));
+  fs.writeFileSync(path.join(pub, 'index.html'), N.buildDocument(data, 'production', { siteUrl }));
   fs.writeFileSync(path.join(pub, 'config.js'),
     '/* Gerado por scripts/build.js a partir das variáveis de ambiente. Não edites à mão. */\n'
     + `window.NICHE_CONFIG = ${JSON.stringify({ supabaseUrl: url, supabaseAnonKey: key }, null, 2)};\n`);

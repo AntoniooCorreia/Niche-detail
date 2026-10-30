@@ -1,5 +1,5 @@
 {
- "version": 1,
+ "version": 2,
  "updatedAt": "2026-10-25T12:00:00.000Z",
  "business": {
   "name": "Niche Detail",
@@ -10,6 +10,7 @@
   "instagram": "nichedetail",
   "address": "",
   "mapsUrl": "",
+  "logo": "",
   "hours": [
    {
     "d": "Segunda a sexta",
@@ -568,24 +569,103 @@
  ],
  "faq": [
   {
+   "id": "faq-1",
    "q": "Quanto tempo demora?",
    "a": "Depende do serviço. Uma lavagem leva entre 1 e 3 horas, uma correção de pintura 1 a 2 dias e um wrap completo cerca de uma semana. Dizemos-te o tempo certo quando marcares."
   },
   {
+   "id": "faq-2",
    "q": "Tenho de deixar o carro?",
    "a": "Nas lavagens podes esperar ou voltar mais tarde. Para correção, cerâmico e wrap o carro fica connosco os dias que forem precisos."
   },
   {
+   "id": "faq-3",
    "q": "O wrap estraga a pintura?",
    "a": "Numa pintura original em bom estado, não. O vinil protege a pintura por baixo e pode ser removido mais tarde. Em pinturas refeitas ou com o verniz danificado avaliamos o carro antes."
   },
   {
+   "id": "faq-4",
    "q": "Quanto tempo dura a proteção cerâmica?",
    "a": "Cerca de 3 anos, com lavagens corretas. Na entrega explicamos-te como lavar o carro para a proteção durar."
   },
   {
+   "id": "faq-5",
    "q": "Fazem orçamentos sem compromisso?",
    "a": "Sim. Manda fotos do carro pelo WhatsApp e respondemos com uma estimativa. Para correção de pintura e wrap, o preço fica fechado depois de vermos o carro."
   }
- ]
+ ],
+ "texts": {
+  "buttons": {
+   "book": "Marcar",
+   "quote": "Pedir orçamento",
+   "prices": "Ver preços",
+   "whatsapp": "Falar no WhatsApp"
+  },
+  "messages": {
+   "book": "Olá! Queria marcar.",
+   "quote": "Olá! Queria pedir um orçamento.",
+   "wrap": "Olá! Queria um orçamento para wrap.",
+   "question": "Olá! Tenho uma pergunta."
+  },
+  "services": {
+   "menu": "Serviços",
+   "eyebrow": "Serviços",
+   "title": ""
+  },
+  "simulator": {
+   "menu": "Simulador",
+   "eyebrow": "Simulador de wrap",
+   "title": "Vê a cor antes de mudar."
+  },
+  "prices": {
+   "menu": "Preços",
+   "eyebrow": "Preços",
+   "title": "Preços claros, sem surpresas."
+  },
+  "steps": {
+   "visible": true,
+   "eyebrow": "Como funciona",
+   "title": "Marcar é simples.",
+   "items": [
+    {
+     "title": "Diz-nos o carro",
+     "text": "Manda mensagem com a marca, o modelo e o que queres fazer. Fotos ajudam."
+    },
+    {
+     "title": "Recebes o preço",
+     "text": "Respondemos com o preço e o tempo que demora. Para correção e wrap, vemos o carro primeiro."
+    },
+    {
+     "title": "Deixas o carro",
+     "text": "Combinamos o dia e a hora. Tratamos dele com tempo, sem pressas."
+    },
+    {
+     "title": "Levantas",
+     "text": "Mostramos-te o resultado e explicamos como manter o carro assim em casa."
+    }
+   ]
+  },
+  "gallery": {
+   "menu": "Trabalhos",
+   "eyebrow": "Trabalhos",
+   "title": "Trabalhos recentes."
+  },
+  "faq": {
+   "eyebrow": "Perguntas frequentes",
+   "title": "Antes de marcar."
+  },
+  "contact": {
+   "menu": "Contactos",
+   "eyebrow": "Contactos",
+   "title": "Marca a tua vez.",
+   "text": "Diz-nos o carro e o que precisa. Respondemos com o preço e a primeira data livre.",
+   "formTitle": "Pedido de orçamento",
+   "formText": "Preenche e envia pelo WhatsApp. A mensagem vai pronta, só tens de carregar em enviar."
+  }
+ },
+ "seo": {
+  "title": "",
+  "description": "",
+  "image": ""
+ }
 }

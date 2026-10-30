@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 const N = window.NICHE;
-const { esc, clone, uid, slug, num, euro, safeSrc, hexOk, FINISHES, finishLabel } = N.util;
+const { esc, clone, uid, slug, num, euro, safeSrc, hexOk, FINISHES, finishLabel, DEFAULT_TEXTS, autoServicesTitle, pageTitle, describe, logoSrc } = N.util;
 const $ = (s, c) => (c || document).querySelector(s);
 const LS_DRAFT = 'niche-admin-draft';
 
@@ -13,9 +13,12 @@ const VIEWS = [
   ['gallery', 'Galeria'],
   ['simulator', 'Simulador de wrap'],
   ['home', 'Página inicial'],
+  ['texts', 'Textos das secções'],
   ['contacts', 'Contactos e horário'],
-  ['faq', 'Perguntas frequentes']
+  ['faq', 'Perguntas frequentes'],
+  ['brand', 'Logótipo e Google']
 ];
+const kindOf = (d, catId) => ((d.categories.find(c => c.id === catId) || {}).kind === 'product' ? 'product' : 'service');
 const A = { root: null, open: false, data: null, draft: null, session: null, entered: false, view: 'catalog', filter: 'all', q: '', drawer: null, modal: null, busy: false, notice: null, staleDraft: null, saveT: 0 };
 
 const ic = {
@@ -95,6 +98,7 @@ function close(force) {
 }
 
 /* ------------------------------------------------------------------ HTML base */
+const siteLogo = () => logoSrc(N.normalize(clone(N.published || N.state.data || {})));
 const loadingHTML = () => '<div class="lg"><div class="lg__card"><p class="lg__wait">A verificar o acesso…</p></div></div>';
 function canEnter() {
   const s = A.session || {};
@@ -106,8 +110,18 @@ function render() {
   if (N.Store.recovery) { A.root.innerHTML = passwordHTML(); const f = $('input', A.root); if (f) f.focus(); return; }
   if (!canEnter()) { A.root.innerHTML = loginHTML(); const f = $('input,button.abtn--primary', A.root); if (f) f.focus(); return; }
   const sc = $('#admMain', A.root) ? $('#admMain', A.root).scrollTop : 0;
+  const navX = $('.adm__nav', A.root) ? $('.adm__nav', A.root).scrollLeft : 0;
   A.root.innerHTML = shellHTML();
   const m = $('#admMain', A.root); if (m) m.scrollTop = sc;
+  // no telemóvel o menu é uma faixa que desliza: mantém a posição e mostra a secção escolhida
+  const nav = $('.adm__nav', A.root), on = $('.nv.is-on', A.root);
+  if (nav) {
+    nav.scrollLeft = navX;
+    if (on && nav.scrollWidth > nav.clientWidth) {
+      const l = on.offsetLeft - nav.offsetLeft, r = l + on.offsetWidth;
+      if (l < nav.scrollLeft || r > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = Math.max(0, l - 16);
+    }
+  }
   renderDrawer(); renderModal(); updateTop();
 }
 function loginHTML() {
@@ -133,7 +147,7 @@ function loginHTML() {
 <button class="abtn abtn--primary abtn--block" type="button" data-act="local-login">Entrar</button>`;
   }
   return `<div class="lg"><div class="lg__card">
-<img src="img/logo.png" alt="" width="64" height="64" class="lg__logo">
+<img src="${esc(siteLogo())}" alt="" width="64" height="64" class="lg__logo">
 <h1 class="lg__h">Área reservada</h1>
 ${body}
 <button class="abtn abtn--text abtn--block" type="button" data-act="exit">Voltar ao site</button>
@@ -141,7 +155,7 @@ ${body}
 }
 function passwordHTML() {
   return `<div class="lg"><div class="lg__card">
-<img src="img/logo.png" alt="" width="64" height="64" class="lg__logo">
+<img src="${esc(siteLogo())}" alt="" width="64" height="64" class="lg__logo">
 <h1 class="lg__h">Nova palavra-passe</h1>
 <p class="lg__p">Escolhe a palavra-passe que vais usar para entrar no painel.</p>
 <form class="lg__form" data-form="password" novalidate>
@@ -156,7 +170,7 @@ function shellHTML() {
   const nav = VIEWS.map(([id, t]) => `<button type="button" class="nv${A.view === id ? ' is-on' : ''}" data-act="view" data-view="${id}"${A.view === id ? ' aria-current="page"' : ''}><span>${t}</span>${counts[id] != null ? `<i>${counts[id]}</i>` : ''}</button>`).join('');
   return `<div class="adm">
 <header class="adm__top">
-<button type="button" class="adm__brand" data-act="exit" title="Voltar ao site"><img src="img/logo.png" alt="" width="34" height="34"><span><b>Painel</b><small>${esc(A.draft.business.name)}</small></span></button>
+<button type="button" class="adm__brand" data-act="exit" title="Voltar ao site"><img src="${esc(logoSrc(A.draft))}" alt="" width="34" height="34"><span><b>Painel</b><small>${esc(A.draft.business.name)}</small></span></button>
 <span class="mode mode--${N.Store.mode}" title="Onde ficam guardados os dados">${esc(N.Store.label())}</span>
 <span class="status" id="admStatus"></span>
 <div class="adm__acts">
@@ -193,8 +207,10 @@ function viewHTML() {
     case 'gallery': return vGallery();
     case 'simulator': return vSimulator();
     case 'home': return vHome();
+    case 'texts': return vTexts();
     case 'contacts': return vContacts();
     case 'faq': return vFaq();
+    case 'brand': return vBrand();
     default: return vCatalog();
   }
 }
@@ -230,37 +246,38 @@ function rowItem(it) {
 function listHTML() {
   const d = A.draft, q = A.q.trim().toLowerCase();
   const list = d.items.filter(i => (A.filter === 'all' || i.category === A.filter) && (!q || (i.name + ' ' + i.description).toLowerCase().includes(q)));
-  if (!list.length) return empty(q ? 'Nada encontrado.' : 'Ainda não há nada aqui.', q ? 'Experimenta outra palavra ou escolhe «Todos».' : 'Carrega em «Adicionar» para criar o primeiro serviço ou produto.');
+  if (!list.length) return empty(q ? 'Nada encontrado.' : 'Ainda não há nada aqui.', q ? 'Experimenta outra palavra ou escolhe «Todos».' : 'Carrega em «Novo serviço» ou «Novo produto» para criar o primeiro.');
   return `<ul class="rows">${list.map(rowItem).join('')}</ul>`;
 }
 function vCatalog() {
   const d = A.draft;
   const chip = (id, t, n) => `<button type="button" class="chip${A.filter === id ? ' is-on' : ''}" data-act="filter" data-id="${esc(id)}">${esc(t)} <i>${n}</i></button>`;
-  return head('Catálogo', 'Serviços e produtos da tabela de preços. As setas mudam a ordem dentro de cada categoria.', `<button type="button" class="abtn abtn--primary" data-act="item-new">${ic.plus}Adicionar</button>`)
+  return head('Catálogo', 'Serviços e produtos da tabela de preços. As setas mudam a ordem dentro de cada categoria.', `<button type="button" class="abtn abtn--ghost" data-act="item-new" data-kind="service">${ic.plus}Novo serviço</button><button type="button" class="abtn abtn--primary" data-act="item-new" data-kind="product">${ic.plus}Novo produto</button>`)
     + `<div class="tools"><div class="chips">${chip('all', 'Todos', d.items.length)}${d.categories.map(c => chip(c.id, c.name, d.items.filter(i => i.category === c.id).length)).join('')}</div>
 <input class="search" type="search" id="admQ" placeholder="Procurar" value="${esc(A.q)}" aria-label="Procurar no catálogo"></div>
 <div id="admList">${listHTML()}</div>`;
 }
 function itemForm(it, isNew) {
-  const d = A.draft, p = it.price;
+  const d = A.draft, p = it.price, kind = kindOf(d, it.category);
   const cats = d.categories.map(c => `<option value="${esc(c.id)}"${c.id === it.category ? ' selected' : ''}>${esc(c.name)}${c.kind === 'product' ? ' (produtos)' : ''}</option>`).join('');
   const radio = (v, t) => `<label><input type="radio" name="pmode" value="${v}"${p.mode === v ? ' checked' : ''}><span>${t}</span></label>`;
-  return `<form class="dr" data-form="item" data-pmode="${esc(p.mode)}" novalidate>
-<header class="dr__head"><h2>${isNew ? 'Novo item' : 'Editar item'}</h2><button type="button" class="ibtn" data-act="drawer-close" aria-label="Fechar">${ic.x}</button></header>
+  const title = kind === 'product' ? (isNew ? 'Novo produto' : 'Editar produto') : (isNew ? 'Novo serviço' : 'Editar serviço');
+  return `<form class="dr" data-form="item" data-pmode="${esc(p.mode)}" data-kind="${kind}" novalidate>
+<header class="dr__head"><h2>${title}</h2><button type="button" class="ibtn" data-act="drawer-close" aria-label="Fechar">${ic.x}</button></header>
 <div class="dr__body">
 <p class="ferr" id="drErr" hidden></p>
-<label class="af"><span>Nome</span><input name="name" value="${esc(it.name)}" required maxlength="80" placeholder="Ex.: Lavagem completa"></label>
+<label class="af"><span>Nome</span><input name="name" value="${esc(it.name)}" required maxlength="80" placeholder="${kind === 'product' ? 'Ex.: Champô pH neutro 500 ml' : 'Ex.: Lavagem completa'}"></label>
 <label class="af"><span>Categoria</span><select name="category">${cats}</select></label>
-<label class="af"><span>Descrição</span><textarea name="description" rows="3" maxlength="300" placeholder="Uma ou duas frases sobre o serviço">${esc(it.description)}</textarea></label>
-<label class="af"><span>O que inclui</span><textarea name="includes" rows="4" placeholder="Um ponto por linha">${esc((it.includes || []).join('\n'))}</textarea><small>Um ponto por linha. Fica em lista por baixo da descrição.</small></label>
-<label class="af"><span>Duração</span><input name="duration" value="${esc(it.duration)}" placeholder="Ex.: 2h30 ou 1 dia"></label>
+<label class="af"><span>Descrição</span><textarea name="description" rows="3" maxlength="300" placeholder="Uma ou duas frases">${esc(it.description)}</textarea></label>
+<label class="af svc-only"><span>O que inclui</span><textarea name="includes" rows="4" placeholder="Um ponto por linha">${esc((it.includes || []).join('\n'))}</textarea><small>Um ponto por linha. Fica em lista por baixo da descrição.</small></label>
+<label class="af svc-only"><span>Duração</span><input name="duration" value="${esc(it.duration)}" placeholder="Ex.: 2h30 ou 1 dia"></label>
 <fieldset class="af"><legend>Preço</legend>
 <div class="seg3">${radio('sizes', 'Por tamanho')}${radio('fixed', 'Preço único')}${radio('quote', 'Sob orçamento')}</div>
 <div class="pm pm--sizes">${d.sizes.map((s, i) => `<label class="af af--in"><span>${esc(s)}</span><span class="eur"><input name="p${i}" inputmode="decimal" value="${num(p.values[i]) || ''}" placeholder="0"><i>€</i></span></label>`).join('')}</div>
 <div class="pm pm--fixed"><label class="af af--in"><span>Preço</span><span class="eur"><input name="pv" inputmode="decimal" value="${num(p.value) || ''}" placeholder="0"><i>€</i></span></label></div>
 <label class="chk pm pm--from"><input type="checkbox" name="from"${p.from ? ' checked' : ''}><span>Mostrar como «desde»</span></label>
 </fieldset>
-${imgField('image', it.image, 'Imagem (opcional)', 'Nos produtos aparece no cartão. Nos serviços só aparece aqui no painel.')}
+${imgField('image', it.image, 'Foto (opcional)', '<span class="prod-only">Aparece no cartão do produto, no site.</span><span class="svc-only">Nos serviços a foto só aparece aqui no painel.</span>')}
 <label class="tgl"><input type="checkbox" name="featured"${it.featured ? ' checked' : ''}><span><b>Destaque</b><small>Mostra a etiqueta «Recomendado».</small></span></label>
 <label class="tgl"><input type="checkbox" name="visible"${it.visible !== false ? ' checked' : ''}><span><b>Visível no site</b><small>Desliga para esconder sem apagar.</small></span></label>
 </div>
@@ -299,7 +316,8 @@ function saveItem(form) {
   if (i >= 0) d.items[i] = it;
   else d.items.push(it);
   A.drawer = null; renderDrawer(); renderMain(); changed();
-  N.toast(i >= 0 ? 'Item atualizado. Publica para aparecer no site.' : 'Item criado. Publica para aparecer no site.');
+  const what = kindOf(d, it.category) === 'product' ? 'Produto' : 'Serviço';
+  N.toast(i >= 0 ? `${what} atualizado. Publica para aparecer no site.` : `${what} criado. Publica para aparecer no site.`);
 }
 
 /* ------------------------------------------------------------------ categorias */
@@ -382,7 +400,7 @@ ${c.finish === 'flip' ? `<label class="af af--sm crow__col"><span>Segunda cor</s
   return head('Simulador de wrap', 'As cores que os clientes podem experimentar no carro. Dentro de cada acabamento aparecem pela ordem desta lista.', `<button type="button" class="abtn abtn--primary" data-act="col-new">${ic.plus}Adicionar cor</button>`)
     + `<div class="card"><label class="tgl"><input type="checkbox" data-bind="simulator.visible" data-type="bool"${s.visible !== false ? ' checked' : ''}><span><b>Mostrar o simulador no site</b></span></label>
 <label class="af"><span>Preço mostrado ao lado da cor</span><select data-bind="simulator.priceItem">${opts}</select></label>
-<label class="af"><span>Nota por baixo do título</span><textarea data-bind="simulator.note" rows="2" maxlength="200">${esc(s.note)}</textarea></label></div>`
+<p class="hint">O título e o texto do simulador estão em <button type="button" class="lnk" data-act="view" data-view="texts">Textos das secções</button>.</p></div>`
     + (rows ? `<ul class="crows">${rows}</ul>` : empty('Sem cores.', 'Sem cores, o simulador não aparece no site.'));
 }
 
@@ -397,15 +415,69 @@ function vHome() {
 <label class="af"><span>Texto</span><textarea data-bind="hero.text" rows="3" maxlength="260">${esc(h.text)}</textarea></label>
 <div class="af"><span>Destaques</span>${hl}${(h.highlights || []).length < 4 ? `<button type="button" class="abtn abtn--ghost abtn--sm" data-act="hl-add">${ic.plus}Adicionar destaque</button>` : ''}</div>
 ${imgFieldBound('hero.image', h.image, 'Foto principal (opcional)', 'Se escolheres uma foto, aparece no lugar do carro em estúdio. Usa uma foto deitada, larga.')}
-</div>
-<div class="card"><label class="af"><span>Nota da tabela de preços</span><textarea data-bind="priceNote" rows="3" maxlength="260">${esc(A.draft.priceNote)}</textarea></label></div>`;
+<p class="hint">Os botões e as mensagens do WhatsApp estão em <button type="button" class="lnk" data-act="view" data-view="texts">Textos das secções</button>.</p>
+</div>`;
 }
-function imgFieldBound(path, url, label, help) {
-  const u = safeSrc(url);
+/* o: { max, alpha, square, fallback } — fallback é a imagem que o site usa quando o campo está vazio */
+function imgFieldBound(path, url, label, help, o) {
+  o = o || {};
+  const u = safeSrc(url), shown = u || o.fallback || '';
   return `<div class="af"><span>${label}</span><div class="imgf">
-<div class="imgf__prev imgf__prev--wide">${u ? `<img src="${esc(u)}" alt="">` : '<i>Sem foto</i>'}</div>
-<div class="imgf__side"><label class="abtn abtn--ghost abtn--sm">${u ? 'Trocar' : 'Escolher foto'}<input type="file" accept="image/*" data-upload-bind="${path}" hidden></label>
-${u ? `<button type="button" class="abtn abtn--text abtn--sm" data-act="bind-clear" data-path="${path}">Remover</button>` : ''}<p class="imgf__msg" aria-live="polite"></p></div></div>${help ? `<small>${help}</small>` : ''}</div>`;
+<div class="imgf__prev ${o.square ? 'imgf__prev--sq' : 'imgf__prev--wide'}">${shown ? `<img src="${esc(shown)}" alt="">` : '<i>Sem foto</i>'}${!u && o.fallback ? '<b class="imgf__def">Atual</b>' : ''}</div>
+<div class="imgf__side"><label class="abtn abtn--ghost abtn--sm">${u ? 'Trocar' : 'Escolher imagem'}<input type="file" accept="image/*" data-upload-bind="${path}"${o.max ? ` data-max="${o.max}"` : ''}${o.alpha ? ' data-alpha="1"' : ''} hidden></label>
+${u ? `<button type="button" class="abtn abtn--text abtn--sm" data-act="bind-clear" data-path="${path}">${o.fallback ? 'Voltar à original' : 'Remover'}</button>` : ''}<p class="imgf__msg" aria-live="polite"></p></div></div>${help ? `<small>${help}</small>` : ''}</div>`;
+}
+
+/* ------------------------------------------------------------------ textos das secções */
+function vTexts() {
+  const d = A.draft, t = d.texts, D = DEFAULT_TEXTS;
+  const nServ = d.categories.filter(c => c.kind !== 'product' && c.visible !== false && d.items.some(i => i.category === c.id && i.visible !== false)).length;
+  const inp = (path, label, v, ph, max) => `<label class="af"><span>${label}</span><input data-bind="${path}" value="${esc(v)}" placeholder="${esc(ph || '')}" maxlength="${max || 90}"></label>`;
+  const area = (path, label, v, ph, rows, max, help) => `<label class="af"><span>${label}</span><textarea data-bind="${path}" rows="${rows || 2}" maxlength="${max || 260}" placeholder="${esc(ph || '')}">${esc(v)}</textarea>${help ? `<small>${help}</small>` : ''}</label>`;
+  const card = (title, sub, body) => `<section class="card"><header class="card__h"><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</header>${body}</section>`;
+  const trio = k => `<div class="grid2">${inp(`texts.${k}.menu`, 'Nome no menu', t[k].menu, D[k].menu, 24)}${inp(`texts.${k}.eyebrow`, 'Linha por cima do título', t[k].eyebrow, D[k].eyebrow, 40)}</div>`;
+  const steps = t.steps.items.map((s, i) => `<li class="stp__row"><span class="stp__n">${i + 1}</span>
+<div class="stp__f"><input data-bind="texts.steps.items.${i}.title" value="${esc(s.title)}" maxlength="40" placeholder="Título do passo" aria-label="Título do passo ${i + 1}">
+<textarea data-bind="texts.steps.items.${i}.text" rows="2" maxlength="200" placeholder="O que acontece neste passo" aria-label="Texto do passo ${i + 1}">${esc(s.text)}</textarea></div>
+<span class="stp__acts"><button type="button" class="ibtn" data-act="step-move" data-i="${i}" data-dir="-1" aria-label="Subir passo ${i + 1}" title="Subir">${ic.up}</button><button type="button" class="ibtn" data-act="step-move" data-i="${i}" data-dir="1" aria-label="Descer passo ${i + 1}" title="Descer">${ic.down}</button><button type="button" class="ibtn" data-act="step-del" data-i="${i}" aria-label="Apagar passo ${i + 1}" title="Apagar">${ic.trash}</button></span></li>`).join('');
+  return head('Textos das secções', 'Os títulos e textos de cada parte do site, pela ordem em que aparecem. Se apagares uma linha por cima do título ou um título, deixam de aparecer.')
+    + card('Botões e WhatsApp', 'Os botões principais e a mensagem que aparece já escrita quando o cliente abre o WhatsApp. Se deixares vazio, volta ao texto original.',
+      `<div class="grid2">${inp('texts.buttons.book', 'Botão do topo e da tabela', t.buttons.book, D.buttons.book, 24)}${inp('texts.buttons.quote', 'Botão principal do início', t.buttons.quote, D.buttons.quote, 30)}${inp('texts.buttons.prices', 'Botão «ver preços»', t.buttons.prices, D.buttons.prices, 24)}${inp('texts.buttons.whatsapp', 'Botão dos contactos', t.buttons.whatsapp, D.buttons.whatsapp, 30)}</div>
+<div class="grid2">${inp('texts.messages.book', 'Mensagem ao marcar', t.messages.book, D.messages.book, 200)}${inp('texts.messages.quote', 'Mensagem ao pedir orçamento', t.messages.quote, D.messages.quote, 200)}${inp('texts.messages.wrap', 'Mensagem do simulador', t.messages.wrap, D.messages.wrap, 200)}${inp('texts.messages.question', 'Mensagem das perguntas', t.messages.question, D.messages.question, 200)}</div>`)
+    + card('Serviços', 'Os cartões com as categorias de serviços, logo a seguir ao início.',
+      trio('services') + inp('texts.services.title', 'Título', t.services.title, autoServicesTitle(nServ)) + `<small class="sm">Vazio: «${esc(autoServicesTitle(nServ))}», que se ajusta sozinho quando acrescentas ou escondes categorias.</small>`)
+    + card('Simulador de wrap', '',
+      trio('simulator') + inp('texts.simulator.title', 'Título', t.simulator.title, D.simulator.title) + area('simulator.note', 'Texto por baixo do título', d.simulator.note, '', 2, 200))
+    + card('Preços', 'A tabela com os separadores das categorias.',
+      trio('prices') + inp('texts.prices.title', 'Título', t.prices.title, D.prices.title) + area('priceNote', 'Nota ao lado do título', d.priceNote, '', 3, 260)
+      + `<div class="af"><span>Tamanhos de carro</span><div class="grid3">${d.sizes.map((s, i) => `<input data-bind="sizes.${i}" value="${esc(s)}" maxlength="30" aria-label="Tamanho ${i + 1}">`).join('')}</div><small>Os três escalões de preço da tabela.</small></div>`)
+    + card('Como funciona', 'Os passos para marcar.',
+      `<label class="tgl"><input type="checkbox" data-bind="texts.steps.visible" data-type="bool"${t.steps.visible !== false ? ' checked' : ''}><span><b>Mostrar esta secção no site</b></span></label>
+<div class="grid2">${inp('texts.steps.eyebrow', 'Linha por cima do título', t.steps.eyebrow, D.steps.eyebrow, 40)}${inp('texts.steps.title', 'Título', t.steps.title, D.steps.title)}</div>
+<div class="af"><span>Passos</span><ol class="stp">${steps}</ol>${t.steps.items.length < 6 ? `<button type="button" class="abtn abtn--ghost abtn--sm" data-act="step-add">${ic.plus}Adicionar passo</button>` : ''}</div>`)
+    + card('Trabalhos', 'A galeria de fotos.', trio('gallery') + inp('texts.gallery.title', 'Título', t.gallery.title, D.gallery.title))
+    + card('Perguntas frequentes', '', `<div class="grid2">${inp('texts.faq.eyebrow', 'Linha por cima do título', t.faq.eyebrow, D.faq.eyebrow, 40)}${inp('texts.faq.title', 'Título', t.faq.title, D.faq.title)}</div>`)
+    + card('Contactos', 'O fim da página, com o formulário de pedido de orçamento.',
+      trio('contact') + inp('texts.contact.title', 'Título', t.contact.title, D.contact.title) + area('texts.contact.text', 'Texto', t.contact.text, D.contact.text, 2, 240)
+      + `<div class="grid2">${inp('texts.contact.formTitle', 'Título do formulário', t.contact.formTitle, D.contact.formTitle, 60)}${inp('texts.contact.formText', 'Texto do formulário', t.contact.formText, D.contact.formText, 200)}</div>`);
+}
+
+/* ------------------------------------------------------------------ logótipo e Google */
+function gPreviewHTML(d) {
+  const site = location.origin.replace(/^https?:\/\//, '');
+  return `<div class="gprev" aria-hidden="true"><small>${esc(site)}</small><b>${esc(pageTitle(d))}</b><p>${esc(describe(d))}</p></div>`;
+}
+function vBrand() {
+  const d = A.draft, s = d.seo;
+  const auto = Object.assign({}, d, { seo: { title: '', description: '', image: '' } });
+  return head('Logótipo e Google', 'A imagem da marca e o que aparece numa pesquisa no Google ou quando alguém partilha o link do site.')
+    + `<div class="card">${imgFieldBound('business.logo', d.business.logo, 'Logótipo', 'Aparece no topo, no rodapé, no painel e no separador do browser. Usa uma imagem quadrada: fica dentro de um círculo.', { max: 512, alpha: true, square: true, fallback: 'img/logo.png' })}
+<p class="hint">O nome ao lado do logótipo é o «Nome do negócio», em <button type="button" class="lnk" data-act="view" data-view="contacts">Contactos e horário</button>. A segunda palavra aparece mais clara.</p></div>`
+    + `<div class="card"><header class="card__h"><h2>Pesquisa no Google</h2><p>Vazio quer dizer automático: o texto cinzento de cada campo.</p></header>
+<label class="af"><span>Título</span><input data-bind="seo.title" value="${esc(s.title)}" maxlength="70" placeholder="${esc(pageTitle(auto))}"><small>Até uns 60 caracteres.</small></label>
+<label class="af"><span>Descrição</span><textarea data-bind="seo.description" rows="3" maxlength="200" placeholder="${esc(describe(auto))}">${esc(s.description)}</textarea><small>Até uns 155 caracteres.</small></label>
+<div class="af"><span>Como fica</span><div id="gPrev">${gPreviewHTML(d)}</div></div></div>`
+    + `<div class="card">${imgFieldBound('seo.image', s.image, 'Imagem das partilhas', 'Aparece quando mandas o link do site no WhatsApp, Facebook ou Instagram. 1200 × 630 píxeis funciona melhor. As mudanças aparecem nas partilhas depois do próximo deploy.', { fallback: 'img/og.jpg' })}</div>`;
 }
 
 /* ------------------------------------------------------------------ contactos */
@@ -426,8 +498,7 @@ ${f('business.mapsUrl', 'Link do Google Maps (opcional)', b.mapsUrl, 'type="url"
 </div>
 <div class="card"><div class="af"><span>Horário</span>${hours}<button type="button" class="abtn abtn--ghost abtn--sm" data-act="hr-add">${ic.plus}Adicionar linha</button></div>
 ${f('business.hoursNote', 'Nota do horário', b.hoursNote, 'maxlength="80" placeholder="Ex.: Só por marcação"')}</div>
-<div class="card"><div class="af"><span>Tamanhos de carro</span><small>Os três escalões de preço da tabela.</small>
-<div class="grid3">${A.draft.sizes.map((s, i) => `<input data-bind="sizes.${i}" value="${esc(s)}" maxlength="30" aria-label="Tamanho ${i + 1}">`).join('')}</div></div></div>`;
+<p class="hint">Os tamanhos de carro da tabela de preços estão em <button type="button" class="lnk" data-act="view" data-view="texts">Textos das secções</button>, e o logótipo em <button type="button" class="lnk" data-act="view" data-view="brand">Logótipo e Google</button>.</p>`;
 }
 
 /* ------------------------------------------------------------------ perguntas */
@@ -472,9 +543,11 @@ function renderModal() {
 /* ------------------------------------------------------------------ publicar */
 function validate(d) {
   const wa = String(d.business.whatsapp || '').replace(/\D/g, '');
-  if (wa.length < 9) return 'O número de WhatsApp tem de ter o indicativo à frente, por exemplo 351912345678.';
-  if (d.items.some(i => !i.name)) return 'Há um item sem nome no catálogo.';
+  if (wa.length < 9) return 'O número de WhatsApp tem de ter o indicativo à frente, por exemplo 351912345678. Muda-o em «Contactos e horário».';
+  if (d.items.some(i => !i.name)) return 'Há um serviço ou produto sem nome no catálogo.';
   if (d.categories.some(c => !c.name)) return 'Há uma categoria sem nome.';
+  const orphan = d.items.find(i => !d.categories.some(c => c.id === i.category));
+  if (orphan) return `«${orphan.name}» está numa categoria que já não existe. Abre-o no catálogo e escolhe outra.`;
   return '';
 }
 function publishError(e) {
@@ -486,7 +559,9 @@ function publishError(e) {
   if (code === 'rate_limited') return 'Publicaste várias vezes seguidas. Espera um minuto e tenta outra vez.';
   if (code === 'too_large') return 'O site ficou grande demais para publicar. Usa fotos mais pequenas.';
   if (code === 'storage_full') return 'Este browser não tem espaço para guardar mais. Apaga algumas fotos ou exporta os dados.';
-  if (/row-level security|permission|42501/i.test(msg)) return 'A tua conta não tem permissão para publicar. Confirma que está na tabela de administradores do Supabase.';
+  if (code === 'needs_migration') return 'A base de dados ainda está na versão antiga. Corre o ficheiro supabase/setup.sql no SQL Editor do Supabase e publica outra vez.';
+  if (code === '22023' && msg) return msg;
+  if (code === '42501' || /row-level security|permission|42501/i.test(msg)) return 'A tua conta não tem permissão para publicar. Confirma que está na tabela de administradores do Supabase.';
   return 'Não foi possível publicar. Verifica a ligação à internet e tenta outra vez.';
 }
 async function publish(thenExit) {
@@ -524,20 +599,21 @@ function uploadError(e) {
   if (code === 'rate_limited') return 'Estás a carregar muitas fotos seguidas. Espera um pouco.';
   return (e && e.message && /imagem/.test(e.message)) ? e.message : 'Não foi possível carregar a foto. Tenta outra vez.';
 }
-async function uploadOne(file) { const blob = await N.prepareImage(file); return N.Store.upload(blob); }
+async function uploadOne(file, o) { const blob = await N.prepareImage(file, o && o.max, o && o.alpha); return N.Store.upload(blob); }
 async function onUploadField(input) {
   const box = input.closest('.imgf'), msg = $('.imgf__msg', box), file = input.files && input.files[0];
   if (!file) return;
   msg.textContent = 'A carregar…';
   try {
-    const url = await uploadOne(file);
+    const url = await uploadOne(file, { max: Number(input.dataset.max) || 0, alpha: !!input.dataset.alpha });
     if (input.dataset.upload) {
       const form = input.closest('form'), name = input.dataset.upload;
       form.querySelector(`input[type="hidden"][name="${name}"]`).value = url;
       $('.imgf__prev', box).innerHTML = `<img src="${esc(url)}" alt="">`;
       msg.textContent = 'Carregada. Carrega em «Guardar».';
     } else if (input.dataset.uploadBind) {
-      setPath(A.draft, input.dataset.uploadBind, url); changed(); renderMain();
+      setPath(A.draft, input.dataset.uploadBind, url); changed();
+      if (input.dataset.uploadBind === 'business.logo') render(); else renderMain();
       N.toast('Foto carregada. Publica para aparecer no site.');
     }
   } catch (e) { console.warn('[foto]', e); msg.textContent = uploadError(e); }
@@ -611,9 +687,16 @@ function onClick(e) {
     }
     case 'filter': A.filter = id; renderMain(); break;
     case 'item-new': {
-      const cat = A.filter !== 'all' ? A.filter : (d.categories[0] || {}).id;
-      const isProd = (d.categories.find(c => c.id === cat) || {}).kind === 'product';
-      A.drawer = { type: 'item', isNew: true, id: uid('i'), tmp: { id: '', category: cat, name: '', description: '', includes: [], duration: '', price: { mode: isProd ? 'fixed' : 'sizes', from: false, values: [0, 0, 0], value: 0 }, image: '', featured: false, visible: true } };
+      const want = b.dataset.kind === 'product' ? 'product' : 'service';
+      const fits = c => c && (c.kind === 'product' ? 'product' : 'service') === want;
+      const inFilter = d.categories.find(c => c.id === A.filter);
+      const cat = fits(inFilter) ? inFilter : d.categories.find(fits);
+      if (!cat) {
+        N.toast(want === 'product' ? 'Ainda não tens uma categoria de produtos. Cria uma em «Categorias», com o tipo «Produtos à venda».' : 'Ainda não tens uma categoria de serviços. Cria uma em «Categorias».', 7000);
+        break;
+      }
+      const isProd = want === 'product';
+      A.drawer = { type: 'item', isNew: true, id: uid('i'), tmp: { id: '', category: cat.id, name: '', description: '', includes: [], duration: '', price: { mode: isProd ? 'fixed' : 'sizes', from: false, values: [0, 0, 0], value: 0 }, image: '', featured: false, visible: true } };
       A.drawer.tmp.id = A.drawer.id; renderDrawer(); break;
     }
     case 'item-edit': A.drawer = { type: 'item', id }; renderDrawer(); break;
@@ -636,7 +719,7 @@ function onClick(e) {
     case 'item-del': d.items = d.items.filter(x => x.id !== A.drawer.id); if (d.simulator.priceItem === A.drawer.id) d.simulator.priceItem = ''; A.drawer = null; renderDrawer(); changed(); renderMain(); break;
     case 'drawer-close': A.drawer = null; renderDrawer(); break;
     case 'img-clear': { const form = b.closest('form'); form.querySelector(`input[type="hidden"][name="${b.dataset.name}"]`).value = ''; const box = b.closest('.imgf'); $('.imgf__prev', box).innerHTML = '<i>Sem imagem</i>'; b.remove(); break; }
-    case 'bind-clear': setPath(d, b.dataset.path, ''); changed(); renderMain(); break;
+    case 'bind-clear': setPath(d, b.dataset.path, ''); changed(); if (b.dataset.path === 'business.logo') render(); else renderMain(); break;
     case 'cat-new': A.drawer = { type: 'cat', isNew: true, tmp: { id: '', name: '', kind: 'service', intro: '', image: '', visible: true } }; renderDrawer(); break;
     case 'cat-edit': A.drawer = { type: 'cat', id }; renderDrawer(); break;
     case 'cat-move': move(d.categories, i, i + dir); changed(); renderMain(); break;
@@ -653,7 +736,10 @@ function onClick(e) {
     case 'hl-del': d.hero.highlights.splice(i, 1); changed(); renderMain(); break;
     case 'hr-add': d.business.hours.push({ d: '', h: '' }); changed(); renderMain(); break;
     case 'hr-del': d.business.hours.splice(i, 1); changed(); renderMain(); break;
-    case 'faq-new': d.faq.push({ q: '', a: '' }); changed(); renderMain(); { const ins = A.root.querySelectorAll('[data-bind$=".q"]'); if (ins.length) ins[ins.length - 1].focus(); } break;
+    case 'faq-new': d.faq.push({ id: uid('f'), q: '', a: '' }); changed(); renderMain(); { const ins = A.root.querySelectorAll('[data-bind$=".q"]'); if (ins.length) ins[ins.length - 1].focus(); } break;
+    case 'step-add': d.texts.steps.items.push({ title: '', text: '' }); changed(); renderMain(); { const ins = A.root.querySelectorAll('[data-bind^="texts.steps.items."][data-bind$=".title"]'); if (ins.length) ins[ins.length - 1].focus(); } break;
+    case 'step-move': move(d.texts.steps.items, i, i + dir); changed(); renderMain(); break;
+    case 'step-del': d.texts.steps.items.splice(i, 1); changed(); renderMain(); break;
     case 'faq-move': move(d.faq, i, i + dir); changed(); renderMain(); break;
     case 'faq-del': d.faq.splice(i, 1); changed(); renderMain(); break;
     default: break;
@@ -670,6 +756,7 @@ function onInput(e) {
   if (el.dataset.bind && el.type !== 'checkbox' && el.tagName !== 'SELECT') {
     setPath(A.draft, el.dataset.bind, bindValue(el)); changed();
     if (el.type === 'color') { const sw = el.closest('.crow') && $('.swm', el.closest('.crow')); if (sw) { sw.style.setProperty(el.dataset.bind.endsWith('hex2') ? '--c2' : '--c', el.value); } }
+    if (/^seo\.|^business\.(name|zone)$/.test(el.dataset.bind)) { const g = $('#gPrev', A.root); if (g) g.innerHTML = gPreviewHTML(A.draft); }
   }
   const form = el.closest('form[data-form="item"]');
   if (form && el.name === 'pmode') form.dataset.pmode = el.value;
@@ -680,6 +767,7 @@ function onChange(e) {
   if (el.matches('[data-upload-gallery]')) { onUploadGallery(el); return; }
   const form = el.closest('form[data-form="item"]');
   if (form && el.name === 'pmode') { form.dataset.pmode = el.value; return; }
+  if (form && el.name === 'category') { form.dataset.kind = kindOf(A.draft, el.value); return; }
   if (el.dataset.type === 'digits') { el.value = el.value.replace(/\D/g, ''); }
   if (el.dataset.bind && (el.type === 'checkbox' || el.tagName === 'SELECT')) {
     setPath(A.draft, el.dataset.bind, bindValue(el)); changed();

@@ -200,3 +200,34 @@ form[data-pmode="sizes"] .pm--fixed,form[data-pmode="fixed"] .pm--sizes,form[dat
 .modal h2{margin:0 0 8px;font-size:1.25rem;font-stretch:110%}
 .modal p{margin:0 0 18px;color:var(--a-ink-2)}
 .modal__acts{display:flex;flex-wrap:wrap;gap:8px}
+
+/* serviço ou produto: o formulário mostra só os campos que contam */
+form[data-kind="product"] .svc-only,form[data-kind="service"] .prod-only{display:none}
+
+/* textos das secções */
+.card .grid2{display:grid;gap:16px}
+.card__h{display:grid;gap:2px}
+.card__h h2{margin:0;font-size:1.05rem;font-weight:700;letter-spacing:-.005em}
+.card__h p{margin:0;color:var(--a-ink-2);font-size:.9rem;max-width:62ch}
+.sm{display:block;color:var(--a-ink-3);font-size:.82rem;margin-top:-10px}
+.hint{margin:0;color:var(--a-ink-2);font-size:.9rem}
+.lnk{border:0;background:none;padding:0;font:inherit;color:var(--a-green);font-weight:600;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.stp{list-style:none;margin:0 0 4px;padding:0;display:grid;gap:8px}
+.stp__row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px;border:1px solid var(--a-line);border-radius:9px;background:var(--a-bg)}
+.stp__n{display:grid;place-items:center;width:28px;height:28px;margin-top:7px;border-radius:50%;background:#fff;border:1px solid var(--a-line-2);font-weight:700;font-size:.85rem;color:var(--a-ink-2)}
+.stp__f{display:grid;gap:6px;min-width:0}
+.stp input,.stp textarea{width:100%;min-width:0;min-height:42px;padding:9px 11px;border:1px solid var(--a-line-2);border-radius:7px;background:#fff;font:inherit;font-size:.97rem;color:var(--a-ink)}
+.stp textarea{resize:vertical;line-height:1.45}
+.stp input:focus,.stp textarea:focus{outline:2px solid var(--a-green);outline-offset:-1px;border-color:var(--a-green)}
+.stp__acts{display:flex;flex-direction:column;gap:2px}
+@media (max-width:640px){.stp__row{grid-template-columns:minmax(0,1fr) auto}.stp__n{display:none}}
+
+/* logótipo e Google */
+.imgf__prev{position:relative}
+.imgf__prev--sq img{object-fit:contain}
+.imgf__def{position:absolute;left:5px;bottom:5px;padding:1px 6px;border-radius:4px;background:rgba(20,28,22,.74);color:#fff;font-size:.7rem;font-weight:600}
+.adm__brand img,.lg__logo{object-fit:contain}
+.gprev{display:grid;gap:3px;padding:14px 16px;border:1px solid var(--a-line);border-radius:10px;background:#fff;font-family:Arial,Helvetica,sans-serif;max-width:600px}
+.gprev small{color:#4d5156;font-size:.8rem}
+.gprev b{color:#1a0dab;font-weight:400;font-size:1.15rem;line-height:1.3}
+.gprev p{margin:0;color:#4d5156;font-size:.87rem;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}

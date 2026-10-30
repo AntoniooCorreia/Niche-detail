@@ -1,32 +1,74 @@
 # Niche Detail
 
-Site da Niche Detail (detailing, lavagem e wrap) com painel de administração. O conteúdo vive no Supabase e o site é publicado no Vercel a partir do GitHub.
+Site da Niche Detail (detailing, lavagem e wrap) com painel de administração. Todo o conteúdo vive em tabelas no Supabase e muda-se no painel, em `/admin`. O site está publicado no Vercel em https://nichedetail.vercel.app.
 
 ## Como está organizado
 
 ```
-public/              o que o Vercel publica
-  assets/            app.js (site e simulador), admin.js (painel), CSS
-  img/               carro do topo (car.webp), imagens dos serviços e exemplos
-  img/sim/           mapas do simulador de wrap, feitos a partir da foto do carro
-  data/site.json     conteúdo inicial, usado se o Supabase não responder
-  admin.html         atalho para /admin
-scripts/build.js     gera public/index.html e public/config.js
-supabase/schema.sql  tabelas e regras de acesso (já aplicadas no projeto)
-vercel.json          diz ao Vercel para correr o build e publicar a pasta public
+public/                 o que o Vercel publica
+  assets/               app.js (site, simulador, ligação ao Supabase), admin.js (painel), CSS
+  img/                  carro do topo, imagens de origem dos serviços, exemplos da galeria
+  img/sim/              mapas do simulador de wrap, feitos a partir da foto do carro
+  data/site.json        conteúdo inicial: só se usa sem Supabase ou com a base de dados vazia
+  admin.html            atalho para /admin
+scripts/build.js        gera public/index.html e public/config.js a partir das tabelas
+supabase/setup.sql      base de dados completa (tabelas, regras, funções, conteúdo inicial)
+supabase/criar-admin.sql        cria a conta de administrador
+supabase/mudar-palavra-passe.sql muda a palavra-passe dessa conta
+vercel.json             diz ao Vercel para correr o build e publicar a pasta public
 ```
 
 `public/index.html` e `public/config.js` são gerados pelo build e não vão para o Git.
 
-## Base de dados (já está feita)
+## Base de dados
 
-O projeto `niche-detail` no Supabase já tem as tabelas, as regras de acesso, o espaço para fotos e o conteúdo atual do site. O teu email `antoniooc.net@gmail.com` está autorizado como administrador.
+| Tabela | O que guarda |
+| --- | --- |
+| `site_settings` | uma linha só: dados do negócio e logótipo, topo do site, tamanhos e nota de preços, simulador, textos das secções, Google |
+| `categories` | separadores da tabela de preços; `kind` = `service` (serviços) ou `product` (produtos à venda) |
+| `items` | serviços e produtos, cada um com a sua categoria (`category_id`), preço e foto |
+| `gallery` | fotos dos trabalhos |
+| `wrap_colors` | cores do simulador |
+| `faq` | perguntas frequentes |
+| `admins` | contas que podem entrar no painel |
 
-Falta só criares a tua conta e fechares os registos:
+A coluna `position` de cada tabela é a ordem em que as coisas aparecem no site.
 
-1. No Supabase, abre o projeto **niche-detail** → **Authentication** → **Users** → **Add user** → **Create new user**.
-2. Põe o email `antoniooc.net@gmail.com` e uma palavra-passe, deixa ligado **Auto Confirm User** e carrega em **Create user**. A conta passa a administrador sozinha.
-3. Em **Authentication** → **Sign In / Providers**, desliga **Allow new users to sign up**, para mais ninguém criar contas.
+- O site lê tudo de uma vez com a função `get_site()`.
+- O painel grava com `publish_site()`: tudo numa só transação, e só se a conta estiver em `admins`. Se entretanto alguém publicou a partir de outro dispositivo, não grava e avisa.
+- As fotos carregadas no painel ficam no Storage, no espaço `media`.
+- Toda a gente pode ler; só administradores escrevem (regras RLS em todas as tabelas).
+
+### Montar ou atualizar
+
+Supabase → **SQL Editor** → **New query** → cola o `supabase/setup.sql` inteiro → **Run**.
+
+Serve para um projeto novo e para atualizar o que já tens, e pode ser corrido mais do que uma vez. Se o Supabase avisar de «operações destrutivas», é a tabela antiga `site_content`, que é apagada depois de o conteúdo passar para as tabelas novas.
+
+No fim aparece quantas categorias, serviços e produtos, fotos, cores e perguntas ficaram nas tabelas.
+
+### Conta de administrador
+
+- **Criar**: abre o `supabase/criar-admin.sql`, muda só a linha da palavra-passe e corre-o no SQL Editor.
+- **Mudar a palavra-passe**: mesmo processo com o `supabase/mudar-palavra-passe.sql`.
+- **Fechar os registos**: Supabase → **Authentication** → **Sign In / Providers** → desliga **Allow new users to sign up**.
+- **Dar acesso a outra pessoa**: acrescenta o email dela no `setup.sql` (linha `insert into private.admin_emails`) e corre-o outra vez. Quando ela criar conta com esse email, passa a administrador sozinha.
+
+## O painel
+
+Entra em `/admin` com o teu email e palavra-passe. Tudo o que mudares fica num rascunho até carregares em **Publicar**. **Pré-visualizar** mostra o site com as alterações antes de publicar.
+
+- **Catálogo**: **Novo serviço** e **Novo produto**. Os produtos aparecem em cartões com foto e botão «Encomendar».
+- **Categorias**: os separadores da tabela de preços. Uma categoria do tipo «Produtos à venda» é uma loja.
+- **Galeria**: fotos dos trabalhos.
+- **Simulador de wrap**: as cores.
+- **Página inicial**: título, texto, destaques e foto do topo.
+- **Textos das secções**: menu, títulos e textos de cada parte do site, os passos de «Como funciona», os botões e as mensagens que aparecem já escritas no WhatsApp.
+- **Contactos e horário**: nome do negócio, WhatsApp, telefone, email, Instagram, morada e horário.
+- **Perguntas frequentes**.
+- **Logótipo e Google**: logótipo, título e descrição no Google, imagem das partilhas.
+
+Fixos no código ficam só o carro do simulador (precisa dos mapas em `img/sim/`) e as palavras pequenas da interface, como «Copiar», «Encomendar» ou os nomes dos campos do formulário.
 
 ## Correr no computador
 
@@ -39,49 +81,50 @@ npm run dev            # abre em http://localhost:3000
 
 O painel fica em http://localhost:3000/admin. Atenção: com o `.env`, o painel local mexe no mesmo Supabase do site publicado.
 
-## GitHub (no VS Code)
+## Publicar código
 
-1. Abre a pasta no VS Code: **File** → **Open Folder**.
-2. Separador **Source Control** (Ctrl+Shift+G) → **Publish to GitHub** → escolhe **private repository**.
+```bash
+git add -A
+git commit -m "o que mudou"
+git push
+npx vercel --prod
+```
 
-O VS Code cria o repositório, faz o primeiro commit e envia tudo. O `.env` não vai, porque está no `.gitignore`.
+Com o repositório ligado ao Vercel (`npx vercel git connect`), o `git push` chega e o último comando deixa de ser preciso.
 
-## Vercel
+As variáveis do Vercel (**Settings** → **Environment Variables**) são as do `.env.example`: `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`. Com domínio próprio, acrescenta `SITE_URL` (ex.: `https://www.nichedetail.pt`) para as partilhas usarem esse endereço.
 
-1. Em vercel.com → **Add New…** → **Project** → importa o repositório `niche-detail` do GitHub.
-2. Não mexas no Framework, no Build nem no Output: o `vercel.json` já trata disso.
-3. Abre **Environment Variables** e acrescenta as duas do `.env.example`:
-   - `SUPABASE_URL`
-   - `SUPABASE_PUBLISHABLE_KEY`
-4. **Deploy**. Em cerca de um minuto tens o site em `https://niche-detail-….vercel.app`.
+## Refazer o site sozinho ao publicar (recomendado)
 
-A partir daqui, cada `git push` para a `main` publica uma versão nova sozinho.
+O conteúdo publicado no painel aparece logo no site. Mas o HTML que o Google e o WhatsApp leem (título, descrição, imagem das partilhas) só muda num deploy. Para cada publicação pedir um deploy ao Vercel:
 
-## Depois do primeiro deploy
+1. Liga o repositório ao Vercel, se ainda não estiver: `npx vercel git connect`.
+2. No Vercel → projeto → **Settings** → **Git** → **Deploy Hooks**: nome `painel`, branch `main` → **Create Hook** → copia o endereço.
+3. No Supabase → **SQL Editor**:
 
-1. No Supabase → **Authentication** → **URL Configuration**:
-   - **Site URL**: o endereço do Vercel (ou o teu domínio, quando o tiveres).
-   - **Redirect URLs**: acrescenta também `http://localhost:3000`.
+   ```sql
+   select private.set_deploy_hook('https://api.vercel.com/v1/integrations/deploy/...');
+   ```
 
-   Assim o email de «Esqueci-me da palavra-passe» leva-te ao sítio certo.
-2. Abre `/admin` no site, entra com o teu email e palavra-passe e experimenta mudar um preço e carregar em **Publicar**.
+Para desligar: `select private.set_deploy_hook(null);`
+
+## Supabase: endereços
+
+Supabase → **Authentication** → **URL Configuration**:
+- **Site URL**: `https://nichedetail.vercel.app` (ou o teu domínio, quando o tiveres).
+- **Redirect URLs**: acrescenta `https://nichedetail.vercel.app/**` e `http://localhost:3000/**`.
+
+Assim o email de «Esqueci-me da palavra-passe» leva-te ao sítio certo.
 
 ## Domínio próprio
 
 No Vercel → projeto → **Settings** → **Domains** → **Add**. O Vercel mostra os registos DNS exatos a criar onde compraste o domínio: normalmente um registo A para `exemplo.pt` e um CNAME para `www`. O certificado HTTPS é automático.
 
-Depois volta a atualizar o **Site URL** no Supabase com o domínio novo.
-
-## No dia a dia
-
-- **Conteúdo** (preços, serviços, produtos, fotos, contactos, perguntas): usa o painel em `/admin`. As alterações aparecem logo no site, sem deploy.
-- **Código e design**: edita no VS Code, faz commit e push. O Vercel publica sozinho.
-- O HTML que o Google lê é gerado em cada deploy com o conteúdo do Supabase. Se mudares muito conteúdo e quiseres o Google atualizado mais cedo, faz **Redeploy** no Vercel.
+Depois atualiza o **Site URL** no Supabase e põe `SITE_URL` no Vercel.
 
 ## Antes de lançar
 
-- Troca os contactos, os preços e as respostas das perguntas, que são de exemplo.
+- Troca os contactos (o WhatsApp de exemplo é `351900000000`), os preços e as respostas das perguntas.
 - Apaga as três fotos marcadas «Exemplo» na galeria quando tiveres as tuas.
-- O carro do topo e do simulador é a imagem do BMW M4 que enviaste (3840×2160, com fundo transparente). Aparece sem alterações e sem ampliação. A mesma imagem foi usada no serviço Wrap e nos exemplos da galeria.
-- Se essa imagem veio do site ou do configurador da BMW, os direitos são da BMW. Para o site público, o mais seguro é trocares por uma foto tua (ou teres autorização).
-- As imagens dos serviços Lavagem e Detailing ainda são renders 3D feitos a partir do modelo «Car Concept» (CC BY 4.0). Enquanto lá estiverem, mantém o crédito do rodapé. Troca-as por fotos tuas no painel (Categorias → foto).
+- O carro do topo e do simulador é a imagem do BMW M4 que enviaste. Se veio do site ou do configurador da BMW, os direitos são da BMW: para o site público, o mais seguro é trocares por uma foto tua (Página inicial → Foto principal) ou teres autorização.
+- As imagens de origem dos serviços Lavagem e Detailing são renders 3D feitos a partir do modelo «Car Concept» (CC BY 4.0). Enquanto aparecerem, o rodapé mostra o crédito sozinho; quando puseres fotos tuas em **Categorias**, o crédito desaparece.

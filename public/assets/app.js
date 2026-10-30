@@ -15,11 +15,12 @@ const uid = (p) => (p || 'x') + '-' + Math.random().toString(36).slice(2, 9);
 const slug = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'item';
 const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
 const num = v => { const n = Number(String(v).replace(',', '.')); return isFinite(n) ? n : 0; };
+// 1600 → «1600», 12500 → «12 500», 24.5 → «24,50» (cêntimos só quando existem, para os produtos)
 const fmtNum = n => {
-  const v = Math.round(num(n));
-  const s = String(Math.abs(v));
+  const c = Math.round(Math.abs(num(n)) * 100);
+  const s = String(Math.floor(c / 100));
   const g = s.length > 4 ? s.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : s;
-  return (v < 0 ? '-' : '') + g;
+  return (num(n) < 0 && c ? '-' : '') + g + (c % 100 ? ',' + String(c % 100).padStart(2, '0') : '');
 };
 const euro = n => fmtNum(n) + ' €';
 const safeSrc = u => {
@@ -47,24 +48,67 @@ const ICON = {
 };
 
 /* ------------------------------------------------------------------ dados */
+/* Textos das secções. Tudo isto fica na base de dados e muda-se no painel, em «Textos das secções».
+   Um título de serviços vazio quer dizer «automático» (conta as categorias). */
+const DEFAULT_TEXTS = {
+  buttons: { book: 'Marcar', quote: 'Pedir orçamento', prices: 'Ver preços', whatsapp: 'Falar no WhatsApp' },
+  messages: { book: 'Olá! Queria marcar.', quote: 'Olá! Queria pedir um orçamento.', wrap: 'Olá! Queria um orçamento para wrap.', question: 'Olá! Tenho uma pergunta.' },
+  services: { menu: 'Serviços', eyebrow: 'Serviços', title: '' },
+  simulator: { menu: 'Simulador', eyebrow: 'Simulador de wrap', title: 'Vê a cor antes de mudar.' },
+  prices: { menu: 'Preços', eyebrow: 'Preços', title: 'Preços claros, sem surpresas.' },
+  steps: {
+    visible: true, eyebrow: 'Como funciona', title: 'Marcar é simples.',
+    items: [
+      { title: 'Diz-nos o carro', text: 'Manda mensagem com a marca, o modelo e o que queres fazer. Fotos ajudam.' },
+      { title: 'Recebes o preço', text: 'Respondemos com o preço e o tempo que demora. Para correção e wrap, vemos o carro primeiro.' },
+      { title: 'Deixas o carro', text: 'Combinamos o dia e a hora. Tratamos dele com tempo, sem pressas.' },
+      { title: 'Levantas', text: 'Mostramos-te o resultado e explicamos como manter o carro assim em casa.' }
+    ]
+  },
+  gallery: { menu: 'Trabalhos', eyebrow: 'Trabalhos', title: 'Trabalhos recentes.' },
+  faq: { eyebrow: 'Perguntas frequentes', title: 'Antes de marcar.' },
+  contact: {
+    menu: 'Contactos', eyebrow: 'Contactos', title: 'Marca a tua vez.',
+    text: 'Diz-nos o carro e o que precisa. Respondemos com o preço e a primeira data livre.',
+    formTitle: 'Pedido de orçamento', formText: 'Preenche e envia pelo WhatsApp. A mensagem vai pronta, só tens de carregar em enviar.'
+  }
+};
+const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+const str = v => v == null ? '' : String(v);
 function normalize(d) {
-  d = d && typeof d === 'object' ? d : {};
-  d.business = Object.assign({ name: 'Niche Detail', zone: '', whatsapp: '', phone: '', email: '', instagram: '', address: '', mapsUrl: '', hours: [], hoursNote: '' }, d.business);
-  d.hero = Object.assign({ eyebrow: '', title: '', text: '', highlights: [], image: '' }, d.hero);
+  d = isObj(d) ? d : {};
+  d.business = Object.assign({ name: 'Niche Detail', zone: '', whatsapp: '', phone: '', email: '', instagram: '', address: '', mapsUrl: '', logo: '', hours: [], hoursNote: '' }, isObj(d.business) ? d.business : {});
+  if (!Array.isArray(d.business.hours)) d.business.hours = [];
+  d.hero = Object.assign({ eyebrow: '', title: '', text: '', highlights: [], image: '' }, isObj(d.hero) ? d.hero : {});
+  if (!Array.isArray(d.hero.highlights)) d.hero.highlights = [];
   d.sizes = Array.isArray(d.sizes) && d.sizes.length === 3 ? d.sizes : ['Citadino', 'Berlina / Carrinha', 'SUV / Monovolume'];
-  d.categories = Array.isArray(d.categories) ? d.categories : [];
-  d.items = Array.isArray(d.items) ? d.items : [];
-  d.gallery = Array.isArray(d.gallery) ? d.gallery : [];
-  d.wrapColors = Array.isArray(d.wrapColors) ? d.wrapColors : [];
-  d.faq = Array.isArray(d.faq) ? d.faq : [];
-  d.simulator = Object.assign({ visible: true, priceItem: '', note: '' }, d.simulator);
+  if (typeof d.priceNote !== 'string') d.priceNote = str(d.priceNote);
+  d.categories = Array.isArray(d.categories) ? d.categories.filter(isObj) : [];
+  d.items = Array.isArray(d.items) ? d.items.filter(isObj) : [];
+  d.gallery = Array.isArray(d.gallery) ? d.gallery.filter(isObj) : [];
+  d.wrapColors = Array.isArray(d.wrapColors) ? d.wrapColors.filter(isObj) : [];
+  d.faq = Array.isArray(d.faq) ? d.faq.filter(isObj) : [];
+  d.simulator = Object.assign({ visible: true, priceItem: '', note: '' }, isObj(d.simulator) ? d.simulator : {});
+  const t = isObj(d.texts) ? d.texts : {};
+  Object.keys(DEFAULT_TEXTS).forEach(k => { t[k] = Object.assign(clone(DEFAULT_TEXTS[k]), isObj(t[k]) ? t[k] : {}); });
+  t.steps.items = (Array.isArray(t.steps.items) ? t.steps.items : []).filter(isObj).map(s => ({ title: str(s.title), text: str(s.text) }));
+  d.texts = t;
+  d.seo = Object.assign({ title: '', description: '', image: '' }, isObj(d.seo) ? d.seo : {});
+  // a base de dados precisa de um id em cada linha
+  d.categories.forEach(c => { if (!c.id) c.id = slug(c.name) + '-' + Math.random().toString(36).slice(2, 5); });
   d.items.forEach(it => {
-    it.price = Object.assign({ mode: 'fixed', from: false, values: [0, 0, 0], value: 0 }, it.price);
+    if (!it.id) it.id = uid('i');
+    it.price = Object.assign({ mode: 'fixed', from: false, values: [0, 0, 0], value: 0 }, isObj(it.price) ? it.price : {});
     if (!Array.isArray(it.price.values)) it.price.values = [0, 0, 0];
     if (!Array.isArray(it.includes)) it.includes = [];
   });
+  d.gallery.forEach(g => { if (!g.id) g.id = uid('g'); });
+  d.wrapColors.forEach(c => { if (!c.id) c.id = uid('c'); });
+  d.faq.forEach(f => { if (!f.id) f.id = uid('f'); });
   return d;
 }
+const T = d => d.texts;
+const logoSrc = d => safeSrc(d.business.logo) || 'img/logo.png';
 const visibleItems = (d, catId) => d.items.filter(i => i.visible !== false && (!catId || i.category === catId));
 function priceLow(it) {
   const p = it.price || {};
@@ -95,13 +139,20 @@ const bookMsg = (d, it, size) => {
 
 /* ------------------------------------------------------------------ HTML do site */
 const NUM_WORD = { 2: 'Duas', 3: 'Três', 4: 'Quatro', 5: 'Cinco' };
-const PILLAR_IMG = { lavagem: 'img/car-beads.webp', detailing: 'img/car-split.webp', wrap: 'img/car-wrap.webp' };
-const STEPS = [
-  ['Diz-nos o carro', 'Manda mensagem com a marca, o modelo e o que queres fazer. Fotos ajudam.'],
-  ['Recebes o preço', 'Respondemos com o preço e o tempo que demora. Para correção e wrap, vemos o carro primeiro.'],
-  ['Deixas o carro', 'Combinamos o dia e a hora. Tratamos dele com tempo, sem pressas.'],
-  ['Levantas', 'Mostramos-te o resultado e explicamos como manter o carro assim em casa.']
-];
+/* Imagens de origem dos cartões de serviços, até carregares fotos tuas em Categorias.
+   cc: render 3D feito a partir do modelo Car Concept (CC BY 4.0), que obriga a mostrar o crédito no rodapé. */
+const PILLAR_IMG = {
+  lavagem: { src: 'img/car-beads.webp', cc: true },
+  detailing: { src: 'img/car-split.webp', cc: true },
+  wrap: { src: 'img/car-wrap.webp' }
+};
+const autoServicesTitle = n => NUM_WORD[n] ? `${NUM_WORD[n]} formas de cuidar do teu carro.` : 'Como cuidamos do teu carro.';
+const secHead = (eyebrow, title) => `${eyebrow ? `<p class="eyebrow t-label">${esc(eyebrow)}</p>` : ''}${title ? `<h2 class="t-display h2">${esc(title)}</h2>` : ''}`;
+function brandHTML(d) {
+  const parts = str(d.business.name).trim().split(/\s+/).filter(Boolean);
+  const first = parts.shift() || '';
+  return `<img src="${esc(logoSrc(d))}" alt="" width="42" height="42"><span class="brand__name">${esc(first)}${parts.length ? `<span>${esc(parts.join(' '))}</span>` : ''}</span>`;
+}
 
 function priceHTML(it) {
   const p = it.price || {};
@@ -111,15 +162,19 @@ function priceHTML(it) {
   return `<span class="pv">${pre}<b>${euro(p.value)}</b></span>`;
 }
 
+const lbl = (d, k) => T(d).buttons[k] || DEFAULT_TEXTS.buttons[k];
+const waText = (d, k) => T(d).messages[k] || DEFAULT_TEXTS.messages[k];
+
 function renderHeader(d, nav) {
   const links = nav.map(([h, t]) => `<a href="${h}">${esc(t)}</a>`).join('');
+  const book = esc(wa(d, waText(d, 'book')));
   return `<header class="hdr" id="hdr"><div class="wrap hdr__in">
-<a class="brand" href="#inicio" aria-label="${esc(d.business.name)}, início"><img src="img/logo.png" alt="" width="42" height="42"><span class="brand__name">Niche<span>Detail</span></span></a>
+<a class="brand" href="#inicio" aria-label="${esc(d.business.name)}, início">${brandHTML(d)}</a>
 <nav class="nav" aria-label="Secções">${links}</nav>
-<a class="btn btn--primary btn--sm hdr__cta" href="${esc(wa(d, 'Olá! Queria marcar.'))}" target="_blank" rel="noopener">Marcar</a>
+<a class="btn btn--primary btn--sm hdr__cta" href="${book}" target="_blank" rel="noopener">${esc(lbl(d, 'book'))}</a>
 <button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="mnav"><i></i>Menu</button>
 </div>
-<nav class="mnav" id="mnav" aria-label="Menu" hidden><div class="wrap">${links}<a class="btn btn--primary btn--block" href="${esc(wa(d, 'Olá! Queria marcar.'))}" target="_blank" rel="noopener">${ICON.chat}Marcar pelo WhatsApp</a></div></nav>
+<nav class="mnav" id="mnav" aria-label="Menu" hidden><div class="wrap">${links}<a class="btn btn--primary btn--block" href="${book}" target="_blank" rel="noopener">${ICON.chat}${esc(lbl(d, 'book'))} pelo WhatsApp</a></div></nav>
 </header>`;
 }
 
@@ -133,35 +188,35 @@ function renderHero(d) {
     : `<div class="stage"><img class="stage__car" src="img/car.webp" srcset="img/car-1800.webp 1800w, img/car.webp 3325w" sizes="(min-width: 1240px) 1180px, 100vw" width="3325" height="1064" fetchpriority="high" alt="BMW M4 branco, visto de lado"><div class="stage__refl" aria-hidden="true"><img src="img/car-1800.webp" alt="" width="1800" height="576"></div></div>`;
   return `<section class="hero" id="inicio">
 <div class="wrap hero__grid">
-<div><p class="eyebrow t-label">${esc(h.eyebrow)}</p><h1 class="t-display">${esc(h.title)}</h1></div>
-<div class="hero__side"><p class="hero__text">${esc(h.text)}</p>
-<div class="hero__cta"><a class="btn btn--primary" href="${esc(wa(d, 'Olá! Queria pedir um orçamento.'))}" target="_blank" rel="noopener">${ICON.chat}Pedir orçamento</a><a class="btn btn--ghost" href="#precos">Ver preços</a></div></div>
+<div>${h.eyebrow ? `<p class="eyebrow t-label">${esc(h.eyebrow)}</p>` : ''}<h1 class="t-display">${esc(h.title)}</h1></div>
+<div class="hero__side">${h.text ? `<p class="hero__text">${esc(h.text)}</p>` : ''}
+<div class="hero__cta"><a class="btn btn--primary" href="${esc(wa(d, waText(d, 'quote')))}" target="_blank" rel="noopener">${ICON.chat}${esc(lbl(d, 'quote'))}</a><a class="btn btn--ghost" href="#precos">${esc(lbl(d, 'prices'))}</a></div></div>
 </div>
 ${stage}
-<div class="wrap"><ul class="facts">${facts}</ul></div>
+${facts ? `<div class="wrap"><ul class="facts">${facts}</ul></div>` : ''}
 </section>`;
 }
 
 function renderServices(d, services) {
   if (!services.length) return '';
-  const word = NUM_WORD[services.length];
-  const title = word ? `${word} formas de cuidar do teu carro.` : 'Como cuidamos do teu carro.';
+  const t = T(d).services;
   const cards = services.map(c => {
     const own = safeSrc(c.image);
     const from = catFrom(d, c.id);
+    const def = PILLAR_IMG[c.id];
     const img = own
       ? `<img class="is-photo" src="${esc(own)}" alt="" loading="lazy">`
-      : PILLAR_IMG[c.id] ? `<img class="is-photo" src="${PILLAR_IMG[c.id]}" alt="" loading="lazy" width="1440" height="900">`
+      : def ? `<img class="is-photo" src="${def.src}" alt="" loading="lazy" width="1440" height="900">`
       : '<img src="img/car-1800.webp" alt="" loading="lazy" width="1800" height="576">';
     const ba = !own && c.id === 'detailing' ? '<span class="ba ba--l t-label">Antes</span><span class="ba ba--r t-label">Depois</span>' : '';
     return `<article class="pillar">
 <a class="pillar__img" href="#precos" data-tab="${esc(c.id)}" aria-label="Ver preços de ${esc(c.name)}">${img}${ba}</a>
-<h3>${esc(c.name)}</h3><p>${esc(c.intro)}</p>
-<div class="pillar__foot"><span class="pillar__from">${from != null ? `Desde <b>${euro(from)}</b>` : 'Sob orçamento'}</span><a class="more" href="#precos" data-tab="${esc(c.id)}">Ver preços</a></div>
+<h3>${esc(c.name)}</h3>${c.intro ? `<p>${esc(c.intro)}</p>` : ''}
+<div class="pillar__foot"><span class="pillar__from">${from != null ? `Desde <b>${euro(from)}</b>` : 'Sob orçamento'}</span><a class="more" href="#precos" data-tab="${esc(c.id)}">${esc(lbl(d, 'prices'))}</a></div>
 </article>`;
   }).join('');
   return `<section class="sec" id="servicos"><div class="wrap">
-<header class="sec__head"><p class="eyebrow t-label">Serviços</p><h2 class="t-display h2">${title}</h2></header>
+<header class="sec__head">${secHead(t.eyebrow, t.title || autoServicesTitle(services.length))}</header>
 <div class="pillars">${cards}</div>
 </div></section>`;
 }
@@ -169,6 +224,7 @@ function renderServices(d, services) {
 function renderSim(d) {
   const colors = d.wrapColors.filter(c => c && c.name);
   if (d.simulator.visible === false || !colors.length) return '';
+  const t = T(d).simulator;
   const pItem = d.items.find(i => i.id === d.simulator.priceItem && i.visible !== false);
   const low = pItem ? priceLow(pItem) : null;
   const priceLine = pItem && low != null ? `<p class="sim__price">${esc(pItem.name)} desde <b>${euro(low)}</b></p>` : '<p class="sim__price"></p>';
@@ -180,8 +236,8 @@ function renderSim(d) {
     ).join('')}</div></div>`;
   }).join('');
   return `<section class="sim" id="simulador"><div class="wrap sim__grid">
-<div class="sim__copy"><p class="eyebrow t-label">Simulador de wrap</p><h2 class="t-display h2">Vê a cor antes de mudar.</h2><p>${esc(d.simulator.note)}</p></div>
-<div class="sim__pick" aria-live="polite"><p class="t-label" style="color:var(--on-night-2);margin:0 0 4px">A tua escolha</p><p class="sim__name" id="simName">Verde original</p><p class="sim__fin" id="simFin">Pintura de origem</p>${priceLine}<a class="btn btn--light" id="simCta" href="${esc(wa(d, 'Olá! Queria um orçamento para wrap.'))}" target="_blank" rel="noopener">${ICON.chat}Pedir orçamento com esta cor</a></div>
+<div class="sim__copy">${secHead(t.eyebrow, t.title)}${d.simulator.note ? `<p>${esc(d.simulator.note)}</p>` : ''}</div>
+<div class="sim__pick" aria-live="polite"><p class="t-label" style="color:var(--on-night-2);margin:0 0 4px">A tua escolha</p><p class="sim__name" id="simName">Branco original</p><p class="sim__fin" id="simFin">Pintura de origem</p>${priceLine}<a class="btn btn--light" id="simCta" href="${esc(wa(d, waText(d, 'wrap')))}" target="_blank" rel="noopener">${ICON.chat}Pedir orçamento com esta cor</a></div>
 <div class="sim__stage"><div class="sim__car"><img src="img/car.webp" srcset="img/car-1800.webp 1800w, img/car.webp 3325w" sizes="(min-width: 1140px) 1080px, 100vw" width="3325" height="1064" loading="lazy" alt="O carro na cor escolhida, em simulação"><canvas id="simCanvas" width="2000" height="640" aria-hidden="true" hidden></canvas></div></div>
 <div class="sim__colors"><div class="sim__group"><p class="t-label">Original</p><div class="sws"><button type="button" class="sw" data-sw="original" data-f="original" style="--c:#f0f0ee" aria-pressed="true" title="Branco original"><span class="sr">Branco original</span></button></div></div>${groups}
 <div class="sim__group sim__any"><p class="t-label">Qualquer cor</p><div class="any">
@@ -194,6 +250,7 @@ function renderSim(d) {
 
 function renderPrices(d, cats) {
   if (!cats.length) return '';
+  const t = T(d).prices;
   const tabs = cats.map((c, i) => `<button type="button" class="tab" role="tab" id="t-${esc(c.id)}" data-tab="${esc(c.id)}" aria-controls="p-${esc(c.id)}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${esc(c.name)}</button>`).join('');
   const sizeBtns = d.sizes.map((s, i) => `<button type="button" role="radio" data-size="${i}" aria-checked="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${esc(s)}</button>`).join('');
   const hasSizes = c => visibleItems(d, c.id).some(i => i.price.mode === 'sizes');
@@ -213,30 +270,35 @@ function renderPrices(d, cats) {
         const inc = (it.includes || []).filter(Boolean);
         return `<li class="item" id="i-${esc(it.id)}"><div><h3 class="item__name">${esc(it.name)}${it.featured ? '<span class="tag t-label">Recomendado</span>' : ''}</h3>
 <p class="item__desc">${esc(it.description)}</p>${inc.length ? `<ul class="item__inc">${inc.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}</div>
-<div class="item__side"><p class="price">${priceHTML(it)}</p>${it.duration ? `<p class="item__time t-label">${esc(it.duration)}</p>` : ''}<a class="btn btn--ghost btn--sm" data-book="${esc(it.id)}" href="${esc(wa(d, bookMsg(d, it, 0)))}" target="_blank" rel="noopener">Marcar</a></div></li>`;
+<div class="item__side"><p class="price">${priceHTML(it)}</p>${it.duration ? `<p class="item__time t-label">${esc(it.duration)}</p>` : ''}<a class="btn btn--ghost btn--sm" data-book="${esc(it.id)}" href="${esc(wa(d, bookMsg(d, it, 0)))}" target="_blank" rel="noopener">${esc(lbl(d, 'book'))}</a></div></li>`;
       }).join('')}</ul>`;
     }
     return `<div class="panel" role="tabpanel" id="p-${esc(c.id)}" data-panel="${esc(c.id)}" data-sizes="${hasSizes(c) ? 1 : 0}" aria-labelledby="t-${esc(c.id)}"${ci ? ' hidden' : ''}>${c.intro ? `<p class="cat-intro">${esc(c.intro)}</p>` : ''}${body}</div>`;
   }).join('');
   return `<section class="sec sec--wall" id="precos"><div class="wrap">
-<header class="sec__head sec__head--split"><div><p class="eyebrow t-label">Preços</p><h2 class="t-display h2">Preços claros, sem surpresas.</h2></div><p class="lede">${esc(d.priceNote)}</p></header>
+<header class="sec__head sec__head--split"><div>${secHead(t.eyebrow, t.title)}</div><p class="lede">${esc(d.priceNote)}</p></header>
 <div class="ptools"><div class="tabs" role="tablist" aria-label="Categorias">${tabs}</div><div class="sizes" id="sizes" role="radiogroup" aria-label="Tamanho do carro"${hasSizes(cats[0]) ? '' : ' hidden'}><span class="sizes__label t-label">Tamanho</span>${sizeBtns}</div></div>
 <div class="panels" id="panels" data-size="0">${panels}</div>
 </div></section>`;
 }
 
-function renderSteps() {
+function renderSteps(d) {
+  const t = T(d).steps;
+  const steps = t.items.filter(s => s.title || s.text);
+  if (t.visible === false || !steps.length) return '';
+  const cols = steps.length <= 4 ? steps.length : steps.length <= 6 ? 3 : 4;
   return `<section class="sec" id="como-funciona"><div class="wrap">
-<header class="sec__head"><p class="eyebrow t-label">Como funciona</p><h2 class="t-display h2">Marcar é simples.</h2></header>
-<ol class="steps">${STEPS.map((s, i) => `<li><span class="steps__n t-label">Passo ${i + 1}</span><h3>${s[0]}</h3><p>${s[1]}</p></li>`).join('')}</ol>
+<header class="sec__head">${secHead(t.eyebrow, t.title)}</header>
+<ol class="steps" style="--cols:${cols}">${steps.map((s, i) => `<li><span class="steps__n t-label">Passo ${i + 1}</span>${s.title ? `<h3>${esc(s.title)}</h3>` : ''}${s.text ? `<p>${esc(s.text)}</p>` : ''}</li>`).join('')}</ol>
 </div></section>`;
 }
 
 function renderGallery(d, gal) {
   if (!gal.length) return '';
+  const t = T(d).gallery;
   const ig = d.business.instagram ? `<a class="more" href="https://instagram.com/${esc(d.business.instagram.replace(/^@/, ''))}" target="_blank" rel="noopener">Mais no Instagram</a>` : '';
   return `<section class="sec" id="trabalhos"><div class="wrap">
-<header class="sec__head sec__head--split"><div><p class="eyebrow t-label">Trabalhos</p><h2 class="t-display h2">Trabalhos recentes.</h2></div><div>${ig}</div></header>
+<header class="sec__head sec__head--split"><div>${secHead(t.eyebrow, t.title)}</div><div>${ig}</div></header>
 <div class="gal">${gal.map((g, i) => `<figure><button type="button" class="gal__btn" data-gal="${i}" aria-label="Ver em grande: ${esc(g.title || 'foto')}"><img src="${esc(safeSrc(g.image))}" alt="${esc(g.title)}" loading="lazy"></button>
 <figcaption><span>${esc(g.title)}</span>${g.example ? '<span class="tag tag--ex t-label">Exemplo</span>' : g.tag ? `<span class="t-label">${esc(g.tag)}</span>` : ''}</figcaption></figure>`).join('')}</div>
 </div></section>`;
@@ -244,14 +306,15 @@ function renderGallery(d, gal) {
 
 function renderFaq(d, faq) {
   if (!faq.length) return '';
+  const t = T(d).faq;
   return `<section class="sec sec--wall" id="perguntas"><div class="wrap faq">
-<div class="faq__head"><p class="eyebrow t-label">Perguntas frequentes</p><h2 class="t-display h2">Antes de marcar.</h2><p>Não encontras a resposta? <a href="${esc(wa(d, 'Olá! Tenho uma pergunta.'))}" target="_blank" rel="noopener">Pergunta pelo WhatsApp</a>.</p></div>
+<div class="faq__head">${secHead(t.eyebrow, t.title)}<p>Não encontras a resposta? <a href="${esc(wa(d, waText(d, 'question')))}" target="_blank" rel="noopener">Pergunta pelo WhatsApp</a>.</p></div>
 <div class="faq__list">${faq.map(f => `<details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join('')}</div>
 </div></section>`;
 }
 
 function renderContact(d, cats) {
-  const b = d.business;
+  const b = d.business, t = T(d).contact;
   const rows = [];
   if (b.phone) rows.push(['Telefone', `<span class="v">${esc(b.phone)}</span>`, b.phone]);
   if (b.email) rows.push(['Email', `<span class="v">${esc(b.email)}</span>`, b.email]);
@@ -262,14 +325,14 @@ function renderContact(d, cats) {
   const opts = cats.map(c => `<optgroup label="${esc(c.name)}">${visibleItems(d, c.id).map(it => `<option value="${esc(it.id)}">${esc(it.name)}</option>`).join('')}</optgroup>`).join('');
   return `<section class="contact" id="contactos"><div class="wrap contact__grid">
 <div>
-<p class="eyebrow t-label">Contactos</p><h2 class="t-display h2">Marca a tua vez.</h2>
-<p class="contact__lede">Diz-nos o carro e o que precisa. Respondemos com o preço e a primeira data livre.</p>
-<div class="contact__wa"><a class="btn btn--light" href="${esc(wa(d, 'Olá! Queria marcar.'))}" target="_blank" rel="noopener">${ICON.chat}Falar no WhatsApp</a></div>
+${secHead(t.eyebrow, t.title)}
+${t.text ? `<p class="contact__lede">${esc(t.text)}</p>` : ''}
+<div class="contact__wa"><a class="btn btn--light" href="${esc(wa(d, waText(d, 'book')))}" target="_blank" rel="noopener">${ICON.chat}${esc(lbl(d, 'whatsapp'))}</a></div>
 <dl class="clist">${rows.map(r => `<div class="clist__row"><dt class="t-label">${r[0]}</dt><dd>${r[1]}</dd>${r[2] ? `<button type="button" class="copy" data-copy="${esc(r[2])}">Copiar</button>` : '<span></span>'}</div>`).join('')}</dl>
 ${hours ? `<div class="hours">${hours}${b.hoursNote ? `<p class="hours__note">${esc(b.hoursNote)}</p>` : ''}</div>` : ''}
 </div>
 <form class="qform" id="qform" novalidate>
-<h3>Pedido de orçamento</h3><p>Preenche e envia pelo WhatsApp. A mensagem vai pronta, só tens de carregar em enviar.</p>
+${t.formTitle ? `<h3>${esc(t.formTitle)}</h3>` : ''}${t.formText ? `<p>${esc(t.formText)}</p>` : ''}
 <div class="fields">
 <div class="fld"><label for="qName">Nome</label><input id="qName" autocomplete="name" placeholder="O teu nome"></div>
 <div class="fld"><label for="qCar">Carro</label><input id="qCar" placeholder="Marca e modelo"></div>
@@ -284,46 +347,53 @@ ${hours ? `<div class="hours">${hours}${b.hoursNote ? `<p class="hours__note">${
 </div></section>`;
 }
 
-function renderFooter(d, nav) {
+function renderFooter(d, nav, credit) {
   const ig = d.business.instagram ? `<a href="https://instagram.com/${esc(d.business.instagram.replace(/^@/, ''))}" target="_blank" rel="noopener">Instagram</a>` : '';
   const year = new Date(d.updatedAt || Date.now()).getFullYear() || 2026;
   return `<footer class="foot"><div class="wrap">
-<div class="foot__top"><a class="brand" href="#inicio"><img src="img/logo.png" alt="" width="42" height="42"><span class="brand__name">Niche<span>Detail</span></span></a>
+<div class="foot__top"><a class="brand" href="#inicio">${brandHTML(d)}</a>
 <nav class="foot__nav" aria-label="Rodapé">${nav.map(([h, t]) => `<a href="${h}">${esc(t)}</a>`).join('')}</nav></div>
 <div class="foot__bot"><span>© ${year} ${esc(d.business.name)}${d.business.zone ? ' · ' + esc(d.business.zone) : ''}</span><span class="foot__links">${ig}<a class="foot__admin" href="#admin">Área reservada</a></span></div>
-<p class="foot__credit">Imagens 3D feitas a partir do modelo «<a href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept" target="_blank" rel="noopener">Car Concept</a>» de Eric Chadwick e Darmstadt Graphics Group, com licença <a href="https://creativecommons.org/licenses/by/4.0/deed.pt" target="_blank" rel="noopener">CC BY 4.0</a>. Cores, materiais e cenário alterados.</p>
+${credit ? '<p class="foot__credit">Imagens 3D feitas a partir do modelo «<a href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept" target="_blank" rel="noopener">Car Concept</a>» de Eric Chadwick e Darmstadt Graphics Group, com licença <a href="https://creativecommons.org/licenses/by/4.0/deed.pt" target="_blank" rel="noopener">CC BY 4.0</a>. Cores, materiais e cenário alterados.</p>' : ''}
 </div></footer>`;
 }
 
 function renderSite(d) {
   d = normalize(d);
+  const t = T(d);
   const cats = d.categories.filter(c => c.visible !== false && visibleItems(d, c.id).length);
   const services = cats.filter(c => c.kind !== 'product');
   const gal = d.gallery.filter(g => g && safeSrc(g.image));
   const faq = d.faq.filter(f => f && f.q);
   const hasSim = d.simulator.visible !== false && d.wrapColors.some(c => c && c.name);
-  const nav = [['#servicos', 'Serviços']];
-  if (hasSim) nav.push(['#simulador', 'Simulador']);
-  nav.push(['#precos', 'Preços']);
-  if (gal.length) nav.push(['#trabalhos', 'Trabalhos']);
-  nav.push(['#contactos', 'Contactos']);
+  const label = (k, def) => t[k].menu || t[k].eyebrow || def;
+  const nav = [];
+  if (services.length) nav.push(['#servicos', label('services', 'Serviços')]);
+  if (hasSim) nav.push(['#simulador', label('simulator', 'Simulador')]);
+  if (cats.length) nav.push(['#precos', label('prices', 'Preços')]);
+  if (gal.length) nav.push(['#trabalhos', label('gallery', 'Trabalhos')]);
+  nav.push(['#contactos', label('contact', 'Contactos')]);
+  const credit = services.some(c => !safeSrc(c.image) && PILLAR_IMG[c.id] && PILLAR_IMG[c.id].cc);
   return renderHeader(d, nav) + '\n<main id="main">\n'
     + renderHero(d) + renderServices(d, services) + renderSim(d) + renderPrices(d, cats)
-    + renderSteps() + renderGallery(d, gal) + renderFaq(d, faq) + renderContact(d, cats)
-    + '\n</main>\n' + renderFooter(d, nav);
+    + renderSteps(d) + renderGallery(d, gal) + renderFaq(d, faq) + renderContact(d, cats)
+    + '\n</main>\n' + renderFooter(d, nav, credit);
 }
 
 /* ------------------------------------------------------------------ documento completo */
 const SKELETON = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>';
 const FONTS = 'https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&display=swap';
 const jsonForHtml = d => JSON.stringify(d).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+/* O que aparece no Google e nas partilhas: vem de «Logótipo e Google» no painel; vazio quer dizer automático. */
 function describe(d) {
+  if (d.seo && d.seo.description) return d.seo.description;
   const z = d.business.zone ? ` em ${d.business.zone}` : '';
   return `${d.business.name}: lavagem à mão, detailing, correção de pintura, proteção cerâmica e wrap${z}. Preços, simulador de cores e marcações pelo WhatsApp.`;
 }
+const pageTitle = d => (d.seo && d.seo.title) || `${d.business.name} · Detailing, lavagem e wrap${d.business.zone ? ' em ' + d.business.zone : ''}`;
 function headTags(d, production) {
   return [
-    production ? `<title>${esc(d.business.name)} · Detailing, lavagem e wrap${d.business.zone ? ' em ' + esc(d.business.zone) : ''}</title>` : '<title>Niche Detail</title>',
+    production ? `<title>${esc(pageTitle(d))}</title>` : '<title>Niche Detail</title>',
     production ? '' : '<meta name="claude:viewport-fit-sides" content="cover">',
     `<meta name="description" content="${esc(describe(d))}">`,
     '<link rel="preconnect" href="https://fonts.googleapis.com">',
@@ -335,12 +405,17 @@ function headTags(d, production) {
 function bodyContent(d) {
   return `<div id="site">\n${renderSite(clone(d))}\n</div>\n<script type="application/json" id="site-data">${jsonForHtml(d)}</script>\n<script src="config.js"></script>\n<script src="assets/app.js"></script>`;
 }
-function buildDocument(d, target) {
+/* opts.siteUrl (ex.: https://nichedetail.vercel.app) põe endereços completos nas partilhas, que o WhatsApp e o Facebook exigem. */
+function buildDocument(d, target, opts) {
   d = normalize(clone(d));
   if (target === 'tool') return headTags(d, false) + '\n' + bodyContent(d) + '\n';
   if (target === 'runtime') return SKELETON + '\n' + headTags(d, false) + '\n' + bodyContent(d) + '\n</body></html>';
   const b = d.business;
-  const ld = { '@context': 'https://schema.org', '@type': 'AutoWash', name: b.name, description: describe(d), image: 'img/og.jpg', telephone: b.phone || undefined, email: b.email || undefined, address: b.address || undefined, areaServed: b.zone || undefined, sameAs: b.instagram ? ['https://instagram.com/' + b.instagram.replace(/^@/, '')] : undefined };
+  const site = str(opts && opts.siteUrl).trim().replace(/\/+$/, '');
+  const abs = u => (!u || /^(https?:|data:)/i.test(u) || !site) ? u : site + '/' + u.replace(/^\/+/, '');
+  const ownShare = safeSrc(d.seo.image);
+  const shareImg = abs(ownShare || 'img/og.jpg');
+  const ld = { '@context': 'https://schema.org', '@type': 'AutoWash', name: b.name, description: describe(d), url: site ? site + '/' : undefined, image: shareImg, logo: abs(logoSrc(d)), telephone: b.phone || undefined, email: b.email || undefined, address: b.address || undefined, areaServed: b.zone || undefined, sameAs: b.instagram ? ['https://instagram.com/' + b.instagram.replace(/^@/, '')] : undefined };
   return `<!doctype html>
 <html lang="pt-PT">
 <head>
@@ -348,14 +423,14 @@ function buildDocument(d, target) {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
 ${headTags(d, true)}
-<link rel="icon" href="img/logo.png">
-<meta property="og:type" content="website">
-<meta property="og:title" content="${esc(b.name)}">
+<link rel="icon" href="${esc(logoSrc(d))}">
+${site ? `<link rel="canonical" href="${esc(site)}/">\n<meta property="og:url" content="${esc(site)}/">\n` : ''}<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_PT">
+<meta property="og:site_name" content="${esc(b.name)}">
+<meta property="og:title" content="${esc((d.seo && d.seo.title) || b.name)}">
 <meta property="og:description" content="${esc(describe(d))}">
-<meta property="og:image" content="img/og.jpg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
+<meta property="og:image" content="${esc(shareImg)}">
+${ownShare ? '' : '<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="630">\n'}<meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">${jsonForHtml(ld)}</script>
 </head>
 <body>
@@ -365,10 +440,29 @@ ${bodyContent(d)}
 `;
 }
 
+/* Lê o site publicado no Supabase: get_site() junta as tabelas num só documento.
+   Se a base de dados ainda estiver na versão antiga (sem a função), lê a tabela site_content.
+   Devolve null se ainda não houver nada publicado. Usado pelo browser e pelo build. */
+async function fetchSite(fetchFn, url, key) {
+  const base = str(url).replace(/\/+$/, '');
+  const headers = { apikey: key, Accept: 'application/json', 'Content-Type': 'application/json' };
+  const r = await fetchFn(base + '/rest/v1/rpc/get_site', { method: 'POST', headers, body: '{}' });
+  if (r.status === 404) {
+    const old = await fetchFn(base + '/rest/v1/site_content?id=eq.main&select=data', { headers });
+    if (old.status === 404) return null;
+    if (!old.ok) throw new Error('HTTP ' + old.status);
+    const rows = await old.json();
+    return rows[0] && rows[0].data ? normalize(rows[0].data) : null;
+  }
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const doc = await r.json();
+  return isObj(doc) ? normalize(doc) : null;
+}
+
 /* ------------------------------------------------------------------ fim do código partilhado com o build */
 const api = {
-  util: { esc, clone, uid, slug, num, euro, fmtNum, safeSrc, hexOk, FINISHES, finishLabel, priceLow, priceText, normalize, visibleItems },
-  renderSite, buildDocument, normalize, wa
+  util: { esc, clone, uid, slug, num, euro, fmtNum, safeSrc, hexOk, FINISHES, finishLabel, priceLow, priceText, normalize, visibleItems, DEFAULT_TEXTS, autoServicesTitle, pageTitle, describe, logoSrc },
+  renderSite, buildDocument, normalize, wa, fetchSite
 };
 if (typeof document === 'undefined') return api;
 
@@ -427,13 +521,7 @@ const Store = {
   cap(name) { return window.claude && window.claude.use ? window.claude.use(name) : Promise.resolve(null); },
   async refresh(current) {
     try {
-      if (this.mode === 'supabase') {
-        const base = String(this.cfg.supabaseUrl).replace(/\/$/, '');
-        const r = await fetch(base + '/rest/v1/site_content?id=eq.main&select=data', { headers: { apikey: this.cfg.supabaseAnonKey, Accept: 'application/json' } });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const rows = await r.json();
-        return rows[0] && rows[0].data ? normalize(rows[0].data) : null;
-      }
+      if (this.mode === 'supabase') return await fetchSite(fetch, this.cfg.supabaseUrl, this.cfg.supabaseAnonKey);
       if (this.mode === 'local') {
         let best = null;
         const saved = ls.get('niche-site');
@@ -491,18 +579,19 @@ const Store = {
     return this.session();
   },
   async save(d, base) {
-    d.updatedAt = new Date().toISOString();
     if (this.mode === 'supabase') {
+      // publish_site grava tudo nas tabelas numa só transação e devolve a hora da publicação
       const sb = await this.client();
-      if (base) {
-        const { data: cur } = await sb.from('site_content').select('data').eq('id', 'main').maybeSingle();
-        const live = cur && cur.data && cur.data.updatedAt;
-        if (live && live !== base) throw { code: 'conflict' };
+      const { data, error } = await sb.rpc('publish_site', { doc: d, base: base || null });
+      if (error) {
+        if (error.code === 'PT409' || error.message === 'conflict') throw { code: 'conflict' };
+        if (error.code === 'PGRST202' || /publish_site/.test(String(error.message))) throw { code: 'needs_migration' };
+        throw error;
       }
-      const { error } = await sb.from('site_content').upsert({ id: 'main', data: d, updated_at: d.updatedAt });
-      if (error) throw error;
+      d.updatedAt = typeof data === 'string' && data ? data : new Date().toISOString();
       return { reload: false };
     }
+    d.updatedAt = new Date().toISOString();
     if (this.mode === 'artifact') {
       const art = await this.cap('artifact');
       if (!art) throw { code: 'not_granted' };
@@ -541,8 +630,8 @@ const Store = {
   }
 };
 
-/* reduz fotos grandes antes de carregar */
-async function prepareImage(file, max) {
+/* reduz fotos grandes antes de carregar; alpha mantém a transparência (logótipos) */
+async function prepareImage(file, max, alpha) {
   max = max || (Store.mode === 'local' ? 1200 : 1800);
   const url = URL.createObjectURL(file);
   try {
@@ -553,7 +642,7 @@ async function prepareImage(file, max) {
     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
     const q = Store.mode === 'local' ? 0.8 : 0.86;
     let blob = await new Promise(res => c.toBlob(res, 'image/webp', q));
-    if (!blob || blob.type !== 'image/webp') blob = await new Promise(res => c.toBlob(res, 'image/jpeg', q));
+    if (!blob || blob.type !== 'image/webp') blob = await new Promise(res => c.toBlob(res, alpha ? 'image/png' : 'image/jpeg', q));
     return blob;
   } finally { URL.revokeObjectURL(url); }
 }
@@ -669,7 +758,7 @@ async function pickColor(id) {
   if (id === 'original') {
     canvas.hidden = true; if (box) box.classList.remove('is-sim');
     name.textContent = 'Branco original'; fin.textContent = 'Pintura de origem';
-    cta.href = wa(d, 'Olá! Queria um orçamento para wrap.');
+    cta.href = wa(d, waText(d, 'wrap'));
     return;
   }
   let c;
@@ -739,7 +828,7 @@ function syncQuote() {
   const v = id => ($('#' + id).value || '').trim();
   const it = d.items.find(x => x.id === v('qService'));
   const size = Number(v('qSize')) || 0;
-  const lines = ['Olá! Queria pedir um orçamento.'];
+  const lines = [waText(d, 'quote')];
   if (v('qName')) lines.push('Nome: ' + v('qName'));
   if (v('qCar')) lines.push('Carro: ' + v('qCar') + ' (' + d.sizes[size] + ')');
   else lines.push('Tamanho: ' + d.sizes[size]);
@@ -837,7 +926,17 @@ function setData(d, opts) {
   const site = $('#site'); if (!site) return;
   site.innerHTML = renderSite(clone(state.data));
   hydrate();
+  syncHead(state.data);
   if (opts && opts.preview) { state.previewing = true; showPreviewBar(); }
+}
+/* título, descrição e ícone do separador acompanham o que foi publicado, sem esperar pelo próximo deploy */
+function syncHead(d) {
+  if (Store.mode === 'artifact') return;
+  try {
+    document.title = pageTitle(d);
+    const m = $('meta[name="description"]'); if (m) m.setAttribute('content', describe(d));
+    const ic = $('link[rel="icon"]'); if (ic) ic.setAttribute('href', logoSrc(d));
+  } catch (e) { /* sem cabeçalho */ }
 }
 function showPreviewBar() {
   let bar = $('#pbar');
