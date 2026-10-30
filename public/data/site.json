@@ -1,0 +1,591 @@
+{
+ "version": 1,
+ "updatedAt": "2026-10-25T12:00:00.000Z",
+ "business": {
+  "name": "Niche Detail",
+  "zone": "Grande Lisboa",
+  "whatsapp": "351900000000",
+  "phone": "+351 900 000 000",
+  "email": "geral@nichedetail.pt",
+  "instagram": "nichedetail",
+  "address": "",
+  "mapsUrl": "",
+  "hours": [
+   {
+    "d": "Segunda a sexta",
+    "h": "9h00 às 19h00"
+   },
+   {
+    "d": "Sábado",
+    "h": "9h00 às 13h00"
+   },
+   {
+    "d": "Domingo",
+    "h": "Fechado"
+   }
+  ],
+  "hoursNote": "Só por marcação"
+ },
+ "hero": {
+  "eyebrow": "Detailing · Lavagem · Wrap",
+  "title": "Cuidamos do teu carro ao detalhe.",
+  "text": "Lavagem à mão, correção de pintura, proteção cerâmica e wrap. Dizes-nos o carro e damos-te o preço antes de começarmos.",
+  "highlights": [
+   "Lavagem à mão, sem rolos",
+   "Preço fechado antes de começar",
+   "Só por marcação"
+  ],
+  "image": ""
+ },
+ "sizes": [
+  "Citadino",
+  "Berlina / Carrinha",
+  "SUV / Monovolume"
+ ],
+ "priceNote": "Valores indicativos para carros em estado normal. Se o teu precisar de mais trabalho, dizemos-te o preço antes de começarmos.",
+ "categories": [
+  {
+   "id": "lavagem",
+   "name": "Lavagem",
+   "kind": "service",
+   "visible": true,
+   "image": "",
+   "intro": "Lavagem à mão com produtos de pH neutro e microfibras limpas. Para o dia a dia e para manter o carro como deve ser."
+  },
+  {
+   "id": "detailing",
+   "name": "Detailing",
+   "kind": "service",
+   "visible": true,
+   "image": "",
+   "intro": "Interiores, correção de pintura e proteção cerâmica. Para devolver o brilho ao carro e mantê-lo durante anos."
+  },
+  {
+   "id": "wrap",
+   "name": "Wrap",
+   "kind": "service",
+   "visible": true,
+   "image": "",
+   "intro": "Mudança de cor, detalhes a preto e película de proteção transparente, com vinil de qualidade aplicado com tempo."
+  },
+  {
+   "id": "loja",
+   "name": "Loja",
+   "kind": "product",
+   "visible": true,
+   "image": "",
+   "intro": "Os produtos que usamos, para tratares do carro em casa entre visitas."
+  }
+ ],
+ "items": [
+  {
+   "id": "lav-exterior",
+   "category": "lavagem",
+   "name": "Lavagem exterior",
+   "description": "O essencial bem feito: o carro limpo por fora, sem riscos novos.",
+   "includes": [
+    "Pré-lavagem com snow foam",
+    "Lavagem à mão com dois baldes",
+    "Jantes e pneus",
+    "Secagem com microfibra"
+   ],
+   "duration": "1h",
+   "price": {
+    "mode": "sizes",
+    "from": false,
+    "values": [
+     20,
+     25,
+     30
+    ],
+    "value": 0
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  },
+  {
+   "id": "lav-completa",
+   "category": "lavagem",
+   "name": "Lavagem completa",
+   "description": "Por dentro e por fora, para o carro de todos os dias.",
+   "includes": [
+    "Lavagem exterior",
+    "Aspiração de bancos e tapetes",
+    "Tablier e plásticos",
+    "Vidros por dentro"
+   ],
+   "duration": "1h30",
+   "price": {
+    "mode": "sizes",
+    "from": false,
+    "values": [
+     35,
+     40,
+     50
+    ],
+    "value": 0
+   },
+   "image": "",
+   "featured": true,
+   "visible": true
+  },
+  {
+   "id": "lav-detalhada",
+   "category": "lavagem",
+   "name": "Lavagem detalhada",
+   "description": "Uma lavagem a fundo, com tempo para os detalhes que costumam ficar para trás.",
+   "includes": [
+    "Lavagem completa",
+    "Descontaminação rápida da pintura",
+    "Jantes e cavas a fundo",
+    "Selante de proteção rápido"
+   ],
+   "duration": "3h",
+   "price": {
+    "mode": "sizes",
+    "from": false,
+    "values": [
+     60,
+     70,
+     80
+    ],
+    "value": 0
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  },
+  {
+   "id": "det-interior",
+   "category": "detailing",
+   "name": "Interior profundo",
+   "description": "Para manchas, cheiros e bancos cansados.",
+   "includes": [
+    "Aspiração a fundo",
+    "Extração de estofos e alcatifas",
+    "Limpeza e hidratação de pele",
+    "Tratamento de ozono"
+   ],
+   "duration": "4h",
+   "price": {
+    "mode": "sizes",
+    "from": false,
+    "values": [
+     110,
+     130,
+     150
+    ],
+    "value": 0
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  },
+  {
+   "id": "det-polimento",
+   "category": "detailing",
+   "name": "Polimento e selante",
+   "description": "Tira a maioria dos riscos ligeiros e devolve o brilho à pintura.",
+   "includes": [
+    "Descontaminação férrica e barra de argila",
+    "Polimento numa fase",
+    "Selante com cerca de 6 meses"
+   ],
+   "duration": "1 dia",
+   "price": {
+    "mode": "sizes",
+    "from": false,
+    "values": [
+     220,
+     260,
+     300
+    ],
+    "value": 0
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  },
+  {
+   "id": "det-correcao",
+   "category": "detailing",
+   "name": "Correção de pintura em 2 fases",
+   "description": "Para riscos marcados, hologramas e verniz baço.",
+   "includes": [
+    "Medição da espessura do verniz",
+    "Corte e acabamento à máquina",
+    "Selante no fim"
+   ],
+   "duration": "2 dias",
+   "price": {
+    "mode": "sizes",
+    "from": false,
+    "values": [
+     380,
+     440,
+     500
+    ],
+    "value": 0
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  },
+  {
+   "id": "det-ceramico",
+   "category": "detailing",
+   "name": "Proteção cerâmica 3 anos",
+   "description": "Brilho que dura e lavagens mais fáceis: a água forma gotas e a sujidade agarra menos.",
+   "includes": [
+    "Descontaminação completa",
+    "Polimento numa fase",
+    "Revestimento cerâmico",
+    "Jantes e vidros protegidos"
+   ],
+   "duration": "2 a 3 dias",
+   "price": {
+    "mode": "sizes",
+    "from": false,
+    "values": [
+     590,
+     690,
+     790
+    ],
+    "value": 0
+   },
+   "image": "",
+   "featured": true,
+   "visible": true
+  },
+  {
+   "id": "det-farois",
+   "category": "detailing",
+   "name": "Restauro de faróis",
+   "description": "Faróis baços ou amarelados voltam a ficar transparentes. Preço por par.",
+   "includes": [
+    "Lixagem e polimento",
+    "Proteção UV"
+   ],
+   "duration": "1h30",
+   "price": {
+    "mode": "fixed",
+    "from": false,
+    "values": [
+     0,
+     0,
+     0
+    ],
+    "value": 45
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  },
+  {
+   "id": "wrap-completo",
+   "category": "wrap",
+   "name": "Wrap completo",
+   "description": "Mudança de cor total. O vinil protege a pintura original e pode ser removido mais tarde.",
+   "includes": [
+    "Vinil de marca, à tua escolha de cor e acabamento",
+    "Desmontagem de puxadores, emblemas e faróis quando é preciso",
+    "Bordos e portas acabados à mão"
+   ],
+   "duration": "5 a 7 dias",
+   "price": {
+    "mode": "sizes",
+    "from": true,
+    "values": [
+     1600,
+     1900,
+     2300
+    ],
+    "value": 0
+   },
+   "image": "",
+   "featured": true,
+   "visible": true
+  },
+  {
+   "id": "wrap-parcial",
+   "category": "wrap",
+   "name": "Wrap parcial",
+   "description": "Tejadilho, capot, espelhos ou outras peças numa cor diferente.",
+   "includes": [
+    "Tejadilho preto brilhante ou noutra cor",
+    "Espelhos",
+    "Capot ou spoiler"
+   ],
+   "duration": "1 dia",
+   "price": {
+    "mode": "fixed",
+    "from": true,
+    "values": [
+     0,
+     0,
+     0
+    ],
+    "value": 120
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  },
+  {
+   "id": "wrap-dechrome",
+   "category": "wrap",
+   "name": "Dechrome",
+   "description": "Frisos, grelhas e emblemas cromados passam a preto.",
+   "includes": [
+    "Frisos das janelas",
+    "Grelha e emblemas"
+   ],
+   "duration": "1 dia",
+   "price": {
+    "mode": "fixed",
+    "from": true,
+    "values": [
+     0,
+     0,
+     0
+    ],
+    "value": 150
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  },
+  {
+   "id": "wrap-ppf",
+   "category": "wrap",
+   "name": "PPF frontal",
+   "description": "Película transparente que protege a frente do carro de pedras e riscos.",
+   "includes": [
+    "Para-choques",
+    "Capot e guarda-lamas parciais",
+    "Faróis e espelhos"
+   ],
+   "duration": "2 dias",
+   "price": {
+    "mode": "fixed",
+    "from": true,
+    "values": [
+     0,
+     0,
+     0
+    ],
+    "value": 750
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  },
+  {
+   "id": "loja-kit",
+   "category": "loja",
+   "name": "Kit de manutenção",
+   "description": "Champô de pH neutro, quick detailer e duas microfibras.",
+   "includes": [],
+   "duration": "",
+   "price": {
+    "mode": "fixed",
+    "from": false,
+    "values": [
+     0,
+     0,
+     0
+    ],
+    "value": 39
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  },
+  {
+   "id": "loja-luva",
+   "category": "loja",
+   "name": "Luva de lavagem",
+   "description": "Microfibra macia e densa, para lavar sem riscar.",
+   "includes": [],
+   "duration": "",
+   "price": {
+    "mode": "fixed",
+    "from": false,
+    "values": [
+     0,
+     0,
+     0
+    ],
+    "value": 12
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  },
+  {
+   "id": "loja-ambientador",
+   "category": "loja",
+   "name": "Ambientador",
+   "description": "Fragrância suave, frasco de 50 ml.",
+   "includes": [],
+   "duration": "",
+   "price": {
+    "mode": "fixed",
+    "from": false,
+    "values": [
+     0,
+     0,
+     0
+    ],
+    "value": 9
+   },
+   "image": "",
+   "featured": false,
+   "visible": true
+  }
+ ],
+ "gallery": [
+  {
+   "id": "g-foto",
+   "image": "img/ex-foto.webp",
+   "title": "Jante e pinças de travão, em detalhe",
+   "tag": "Detailing",
+   "example": true
+  },
+  {
+   "id": "g-azul",
+   "image": "img/ex-azul.webp",
+   "title": "Simulação de wrap em azul metalizado",
+   "tag": "Wrap",
+   "example": true
+  },
+  {
+   "id": "g-preto",
+   "image": "img/ex-preto.webp",
+   "title": "Simulação de wrap em preto acetinado",
+   "tag": "Wrap",
+   "example": true
+  }
+ ],
+ "simulator": {
+  "visible": true,
+  "priceItem": "wrap-completo",
+  "note": "É uma simulação aproximada. No estúdio mostramos-te as amostras reais do vinil."
+ },
+ "wrapColors": [
+  {
+   "id": "c-preto-b",
+   "name": "Preto",
+   "finish": "gloss",
+   "hex": "#0c0d0f",
+   "hex2": ""
+  },
+  {
+   "id": "c-branco",
+   "name": "Branco pérola",
+   "finish": "gloss",
+   "hex": "#ebe9e3",
+   "hex2": ""
+  },
+  {
+   "id": "c-nardo",
+   "name": "Cinza Nardo",
+   "finish": "gloss",
+   "hex": "#858886",
+   "hex2": ""
+  },
+  {
+   "id": "c-vermelho",
+   "name": "Vermelho",
+   "finish": "gloss",
+   "hex": "#b1141c",
+   "hex2": ""
+  },
+  {
+   "id": "c-azul",
+   "name": "Azul",
+   "finish": "metallic",
+   "hex": "#1f72c4",
+   "hex2": ""
+  },
+  {
+   "id": "c-bronze",
+   "name": "Bronze",
+   "finish": "metallic",
+   "hex": "#8a6a3c",
+   "hex2": ""
+  },
+  {
+   "id": "c-preto-s",
+   "name": "Preto",
+   "finish": "satin",
+   "hex": "#151618",
+   "hex2": ""
+  },
+  {
+   "id": "c-grafite",
+   "name": "Grafite",
+   "finish": "satin",
+   "hex": "#3f4346",
+   "hex2": ""
+  },
+  {
+   "id": "c-militar",
+   "name": "Verde militar",
+   "finish": "satin",
+   "hex": "#4a5a3f",
+   "hex2": ""
+  },
+  {
+   "id": "c-preto-m",
+   "name": "Preto",
+   "finish": "matte",
+   "hex": "#141414",
+   "hex2": ""
+  },
+  {
+   "id": "c-cinza-m",
+   "name": "Cinza",
+   "finish": "matte",
+   "hex": "#6a6d6f",
+   "hex2": ""
+  },
+  {
+   "id": "c-prata",
+   "name": "Prata",
+   "finish": "chrome",
+   "hex": "#c9ccd0",
+   "hex2": ""
+  },
+  {
+   "id": "c-flip",
+   "name": "Roxo e verde",
+   "finish": "flip",
+   "hex": "#5b2a86",
+   "hex2": "#1f8a6a"
+  }
+ ],
+ "faq": [
+  {
+   "q": "Quanto tempo demora?",
+   "a": "Depende do serviço. Uma lavagem leva entre 1 e 3 horas, uma correção de pintura 1 a 2 dias e um wrap completo cerca de uma semana. Dizemos-te o tempo certo quando marcares."
+  },
+  {
+   "q": "Tenho de deixar o carro?",
+   "a": "Nas lavagens podes esperar ou voltar mais tarde. Para correção, cerâmico e wrap o carro fica connosco os dias que forem precisos."
+  },
+  {
+   "q": "O wrap estraga a pintura?",
+   "a": "Numa pintura original em bom estado, não. O vinil protege a pintura por baixo e pode ser removido mais tarde. Em pinturas refeitas ou com o verniz danificado avaliamos o carro antes."
+  },
+  {
+   "q": "Quanto tempo dura a proteção cerâmica?",
+   "a": "Cerca de 3 anos, com lavagens corretas. Na entrega explicamos-te como lavar o carro para a proteção durar."
+  },
+  {
+   "q": "Fazem orçamentos sem compromisso?",
+   "a": "Sim. Manda fotos do carro pelo WhatsApp e respondemos com uma estimativa. Para correção de pintura e wrap, o preço fica fechado depois de vermos o carro."
+  }
+ ]
+}

@@ -1,0 +1,12 @@
+# Gerados pelo scripts/build.js
+public/index.html
+public/config.js
+
+# Variáveis locais
+.env
+.env.local
+
+node_modules/
+.vercel/
+.DS_Store
+Thumbs.db
